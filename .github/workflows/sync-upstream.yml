@@ -1,0 +1,47 @@
+name: Sync with upstream
+
+on:
+  schedule:
+    - cron: '33 7 * * *'
+  workflow_dispatch:  # click the button on Github repo!
+  push:
+
+jobs:
+  sync_master: # master follows upstream strictly
+    runs-on: ubuntu-latest
+    name: Sync master with upstream
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v2
+        with:
+          ref: master
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull (Fast-Forward) upstream changes
+        id: sync
+        uses: aormsby/Fork-Sync-With-Upstream-action@v2.3
+        with:
+          upstream_repository: phobos2077/sfall
+          upstream_branch: master
+          target_branch: master
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+  sync_better_docs:
+    runs-on: ubuntu-latest
+    name: Sync better-docs with upstream master
+    steps:
+      - name: Checkout better-docs
+        uses: actions/checkout@v2
+        with:
+          ref: better-docs
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Pull (Fast-Forward) upstream changes (better-docs)
+        id: sync-better-docs
+        uses: aormsby/Fork-Sync-With-Upstream-action@v2.3
+        with:
+          upstream_repository: phobos2077/sfall
+          upstream_branch: master
+          target_branch: better-docs
+          github_token: ${{ secrets.GITHUB_TOKEN }}
