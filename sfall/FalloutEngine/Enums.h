@@ -99,6 +99,18 @@ enum AnimCommand : long
 	RB_END_ANIM   = 0x200
 };
 
+enum BodyPart : long {
+	Head     = 0,
+	ArmLeft  = 1,
+	ArmRight = 2,
+	Torso    = 3,
+	LegRight = 4,
+	LegLeft  = 5,
+	Eyes     = 6,
+	Groin    = 7,
+	Uncalled = 8
+};
+
 enum CritterFlags : long
 {
 	Sneak        = 0x01,   // Can sneak ?
@@ -115,6 +127,19 @@ enum CritterFlags : long
 	SpecialDeath = 0x1000, // Has a special type of death
 	RangeHtH     = 0x2000, // Has extra hand-to-hand range
 	NoKnockBack  = 0x4000, // Can't be knocked back
+};
+
+enum ItemFlags : long
+{
+	// Weapon Flags:
+	BigGun       = 0x00000100,
+	TwoHand      = 0x00000200,
+	EnergyGun    = 0x00000400, // sfall flag
+
+	// Action Flags:
+	Use          = 0x00000800, // object can be used
+
+	HiddenItem   = 0x08000000  // item is hidden
 };
 
 enum DamageFlag : unsigned long
@@ -143,7 +168,9 @@ enum DamageFlag : unsigned long
 	DAM_CRIP_RANDOM     = 0x200000,
 	DAM_BACKWASH        = 0x400000,
 	DAM_PERFORM_REVERSE = 0x800000,
-	DAM_PRESERVE_FLAGS  = 0x80000000 // sfall, used for attack_complex
+	// sfall flags
+	DAM_KNOCKOUT_WOKEN  = 0x40000000, // internal for op_critter_state_
+	DAM_PRESERVE_FLAGS  = 0x80000000  // used for attack_complex
 };
 
 enum DamageType
@@ -205,25 +232,25 @@ enum class Material : long
 
 namespace ObjectFlag {
 	enum ObjectFlag : unsigned long {
-		Mouse_3d     = 0x1,
-		WalkThru     = 0x4,
-		Flat         = 0x8,
-		NoBlock      = 0x10,
-		Lighting     = 0x20,
-		Temp         = 0x400,
-		MultiHex     = 0x800,
-		NoHighlight  = 0x1000,
-		Used         = 0x2000,
-		TransRed     = 0x4000,
-		TransNone    = 0x8000,
-		TransWall    = 0x10000,
-		TransGlass   = 0x20000,
-		TransSteam   = 0x40000,
-		TransEnergy  = 0x80000,
-		Left_Hand    = 0x1000000,
-		Right_Hand   = 0x2000000,
-		Worn         = 0x4000000,
-		HiddenItem   = 0x8000000,
+		Mouse_3d     = 0x00000001,
+		WalkThru     = 0x00000004,
+		Flat         = 0x00000008,
+		NoBlock      = 0x00000010,
+		Lighting     = 0x00000020,
+		Temp         = 0x00000400,
+		MultiHex     = 0x00000800,
+		NoHighlight  = 0x00001000,
+		Used         = 0x00002000,
+		TransRed     = 0x00004000,
+		TransNone    = 0x00008000,
+		TransWall    = 0x00010000,
+		TransGlass   = 0x00020000,
+		TransSteam   = 0x00040000,
+		TransEnergy  = 0x00080000,
+		Left_Hand    = 0x01000000,
+		Right_Hand   = 0x02000000,
+		Worn         = 0x04000000,
+		HiddenItem   = 0x08000000,
 		WallTransEnd = 0x10000000,
 		LightThru    = 0x20000000,
 		Seen         = 0x40000000,
@@ -298,6 +325,7 @@ enum ProtoID : unsigned long
 	PID_CHEMISTRY_MANUAL = 237,
 	PID_JET = 259,
 	PID_JET_ANTIDOTE = 260,
+	PID_HEALING_POWDER = 273,
 	PID_DECK_OF_TRAGIC_CARDS = 306,
 	PID_ADVANCED_POWER_ARMOR = 348,
 	PID_ADVANCED_POWER_ARMOR_MK2 = 349,
@@ -310,6 +338,8 @@ enum ProtoID : unsigned long
 	PID_Player = 0x01000000,
 
 	// scenery
+	PID_RAD_GOO_1 = 0x020003D9,
+	PID_RAD_GOO_4 = 0x020003DC,
 	PID_DRIVABLE_CAR = 0x020003F1, // index 1009
 
 	// misc type
@@ -754,6 +784,7 @@ enum CombatStateFlag : long
 	ReTarget        = 8 // sfall flag (set in ai_try_attack_ before run away)
 };
 
+// Names of structure offsets used in the assembler code
 namespace Fields {
 	enum CommonObj : long
 	{
@@ -801,6 +832,14 @@ namespace Fields {
 		charges           = 0x3C,
 		ammoPid           = 0x40,
 	};
+
+	enum ComputeAttack : long
+	{
+		ctdAttackerFlags  = 0x15, // flags2Source
+		ctdTarget         = 0x20,
+		ctdMainTarget     = 0x38,
+		ctdExtraTarget1   = 0x40,
+	};
 }
 
 namespace WinFlags {
@@ -822,11 +861,11 @@ namespace WinFlags {
 namespace AIpref {
 	enum distance : long
 	{
-		stay_close            = 0, // the attacker will stay at a distance no more than 5 hexes from the player (defined in ai_move_steps_closer, cai_perform_distance_prefs)
+		stay_close            = 0, // the attacker will stay at a distance no more than 5 hexes from the player (behavior only for party members, defined in ai_move_steps_closer, cai_perform_distance_prefs)
 		charge                = 1, // AI will always try to get close to its target before or after attack
-		snipe                 = 2, // when the distance between the attacker and the target decreases, the attacker will try to move away from the target to a distance of up to 10 hexes
+		snipe                 = 2, // keep distance, when the distance between the attacker and the target decreases, the attacker will try to move away from the target to a distance of up to 10 hexes
 		on_your_own           = 3, // no special behavior defined for this
-		stay                  = 4  // the attacker will, if possible, stay at the hex where the combat started (defined in ai_move_steps_closer, ai_move_away)
+		stay                  = 4  // the attacker will, if possible, stay at the hex where the combat started (behavior defined in ai_move_steps_closer, ai_move_away)
 	};
 
 	// presets for party members

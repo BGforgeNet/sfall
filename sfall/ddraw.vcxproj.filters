@@ -332,6 +332,20 @@
     <ClInclude Include="Game\objects.h">
       <Filter>Game</Filter>
     </ClInclude>
+    <ClInclude Include="Modules\Scripting\Handlers\Inventory.h">
+      <Filter>Modules\Scripting\Handlers</Filter>
+    </ClInclude>
+    <ClInclude Include="Modules\Scripting\Handlers\Combat.h">
+      <Filter>Modules\Scripting\Handlers</Filter>
+    </ClInclude>
+    <ClInclude Include="IniReader.h" />
+    <ClInclude Include="Game\tilemap.h">
+      <Filter>Game</Filter>
+    </ClInclude>
+    <ClInclude Include="Translate.h" />
+    <ClInclude Include="Game\combatAI.h">
+      <Filter>Game</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -612,6 +626,20 @@
       <Filter>Game</Filter>
     </ClCompile>
     <ClCompile Include="Game\objects.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Modules\Scripting\Handlers\Inventory.cpp">
+      <Filter>Modules\Scripting\Handlers</Filter>
+    </ClCompile>
+    <ClCompile Include="Modules\Scripting\Handlers\Combat.cpp">
+      <Filter>Modules\Scripting\Handlers</Filter>
+    </ClCompile>
+    <ClCompile Include="IniReader.cpp" />
+    <ClCompile Include="Game\tilemap.cpp">
+      <Filter>Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Translate.cpp" />
+    <ClCompile Include="Game\combatAI.cpp">
       <Filter>Game</Filter>
     </ClCompile>
   </ItemGroup>

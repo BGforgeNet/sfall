@@ -99,8 +99,8 @@ static long CalcApCostHook_Script(fo::GameObject* source, long hitMode, long isC
 
 long CalcApCostHook_Invoke(fo::GameObject* source, long hitMode, long isCalled, long cost, fo::GameObject* weapon) {
 	return (HookScripts::HookHasScript(HOOK_CALCAPCOST))
-			? CalcApCostHook_Script(source, hitMode, isCalled, cost, weapon)
-			: cost;
+	       ? CalcApCostHook_Script(source, hitMode, isCalled, cost, weapon)
+	       : cost;
 }
 
 static void __declspec(naked) CalcApCostHook() {
@@ -281,11 +281,13 @@ static void __fastcall FindTargetHook_Script(DWORD* target, fo::GameObject* atta
 	}
 	EndHook();
 }
+
 /*
 void FindTargetHook_Invoke(fo::GameObject* targets[], fo::GameObject* attacker) {
 	if (HookScripts::HookHasScript(HOOK_FINDTARGET)) FindTargetHook_Script((DWORD*)targets, attacker);
 }
 */
+
 static void __declspec(naked) FindTargetHook() {
 	__asm {
 		push eax;
@@ -343,7 +345,7 @@ int __fastcall AmmoCostHook_Script(DWORD hookType, fo::GameObject* weapon, DWORD
 		rounds = 1;             // set default multiply for check burst attack
 	} else {
 		result = fo::func::item_w_compute_ammo_cost(weapon, &rounds);
-		if (result == -1) goto failed; // failed computed
+		if (result == -1) goto failed; // computation failed
 	}
 	args[2] = rounds;           // rounds as computed by game (cost)
 
@@ -367,7 +369,7 @@ static void __declspec(naked) AmmoCostHook() {
 		mov  ecx, 3;               // hook type burst
 skip:
 		xchg eax, edx;
-		push eax;                  // rounds in attack
+		push eax;                  // rounds in attack ref
 		call AmmoCostHook_Script;  // edx - weapon
 		retn;
 	}
@@ -578,6 +580,85 @@ default:
 	}
 }
 
+static fo::GameObject* __stdcall BestWeaponHook_Script(fo::GameObject* bestWeapon, fo::GameObject* source, fo::GameObject* weapon1, fo::GameObject* weapon2, fo::GameObject* target) {
+	BeginHook();
+	argCount = 5;
+
+	args[0] = (DWORD)source;
+	args[1] = (DWORD)bestWeapon;
+	args[2] = (DWORD)weapon1;
+	args[3] = (DWORD)weapon2;
+	args[4] = (DWORD)target;
+
+	RunHookScript(HOOK_BESTWEAPON);
+
+	if (cRet > 0) bestWeapon = (fo::GameObject*)rets[0];
+
+	EndHook();
+	return bestWeapon;
+}
+
+static void __declspec(naked) ai_search_inven_weap_hook() {
+	__asm {
+		push ecx; // target
+		push ebx; // weapon2 (secondary)
+		push edx; // weapon1 (primary)
+		push eax; // source
+		call fo::funcoffs::ai_best_weapon_;
+		push eax; // bestWeapon
+		call BestWeaponHook_Script;
+		retn;
+	}
+}
+
+/*
+fo::GameObject* BestWeaponHook_Invoke(fo::GameObject* bestWeapon, fo::GameObject* source, fo::GameObject* weapon1, fo::GameObject* weapon2, fo::GameObject* target) {
+	return (HookScripts::HookHasScript(HOOK_BESTWEAPON))
+	       ? BestWeaponHook_Script(bestWeapon, source, weapon1, weapon2, target)
+	       : bestWeapon;
+}
+*/
+
+static bool __stdcall CanUseWeaponHook_Script(bool result, fo::GameObject* source, fo::GameObject* weapon, long hitMode) {
+	BeginHook();
+	argCount = 4;
+
+	args[0] = (DWORD)source;
+	args[1] = (DWORD)weapon;
+	args[2] = hitMode;
+	args[3] = 0 | result;
+
+	RunHookScript(HOOK_CANUSEWEAPON);
+
+	if (cRet > 0) result = rets[0] ? true : false;
+
+	EndHook();
+	return result; // only 0 and 1
+}
+
+static void __declspec(naked) CanUseWeaponHook() {
+	__asm {
+		push ecx;
+		push ebx; // hitMode
+		push edx; // weapon
+		push eax; // source
+		call fo::funcoffs::ai_can_use_weapon_;
+		push eax; // result
+		call CanUseWeaponHook_Script;
+		and  eax, 1;
+		pop  ecx;
+		retn;
+	}
+}
+
+bool CanUseWeaponHook_Invoke(bool result, fo::GameObject* source, fo::GameObject* weapon, long hitMode) {
+	return (HookScripts::HookHasScript(HOOK_CANUSEWEAPON))
+	       ? CanUseWeaponHook_Script(result, source, weapon, hitMode)
+	       : result;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 void Inject_ToHitHook() {
 	HookCalls(ToHitHook, {
 		0x421686, // combat_safety_invalidate_weapon_func_
@@ -634,7 +715,7 @@ void Inject_ItemDamageHook() {
 }
 
 void Inject_AmmoCostHook() {
-	HookCall(0x423A7C, AmmoCostHook);
+	HookCall(0x423A7C, AmmoCostHook); // compute_attack_
 }
 
 void Inject_CombatTurnHook() {
@@ -664,6 +745,18 @@ void Inject_TargetObjectHook() {
 	SafeWrite8(0x44C26E, 0x17);
 }
 
+void Inject_BestWeaponHook() {
+	HookCall(0x429A59, ai_search_inven_weap_hook);
+}
+
+void Inject_CanUseWeaponHook() {
+	HookCalls(CanUseWeaponHook, {
+		0x429A1B, // ai_search_inven_weap_
+		0x429CF2, // ai_search_environ_
+		0x429E1C  // ai_pick_hit_mode_
+	});
+}
+
 void InitCombatHookScripts() {
 	HookScripts::LoadHookScript("hs_tohit", HOOK_TOHIT);
 	HookScripts::LoadHookScript("hs_afterhitroll", HOOK_AFTERHITROLL);
@@ -676,6 +769,8 @@ void InitCombatHookScripts() {
 	HookScripts::LoadHookScript("hs_onexplosion", HOOK_ONEXPLOSION);
 	HookScripts::LoadHookScript("hs_subcombatdmg", HOOK_SUBCOMBATDAMAGE);
 	HookScripts::LoadHookScript("hs_targetobject", HOOK_TARGETOBJECT);
+	HookScripts::LoadHookScript("hs_bestweapon", HOOK_BESTWEAPON);
+	HookScripts::LoadHookScript("hs_canuseweapon", HOOK_CANUSEWEAPON);
 }
 
 }

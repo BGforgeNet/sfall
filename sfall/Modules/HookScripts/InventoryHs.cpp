@@ -69,7 +69,7 @@ static void __declspec(naked) MoveCostHook() {
 }
 
 static int __fastcall SwitchHandHook_Script(fo::GameObject* item, fo::GameObject* itemReplaced, DWORD addr) {
-	if (itemReplaced && fo::GetItemType(itemReplaced) == fo::item_type_weapon && fo::GetItemType(item) == fo::item_type_ammo) {
+	if (itemReplaced && fo::func::item_get_type(itemReplaced) == fo::item_type_weapon && fo::func::item_get_type(item) == fo::item_type_ammo) {
 		return -1; // to prevent inappropriate hook call after dropping ammo on weapon
 	}
 
@@ -124,7 +124,7 @@ static int __fastcall InventoryMoveHook_Script(DWORD itemReplace, DWORD item, in
 
 	RunHookScript(HOOK_INVENTORYMOVE);
 
-	int result = (cRet > 0) ? rets[0] : -1;
+	int result = (cRet > 0) ? rets[0] : -1; // -1 - can move
 	EndHook();
 
 	return result;
@@ -242,19 +242,20 @@ static int __fastcall DropIntoContainer(DWORD ptrCont, DWORD item, DWORD addrCal
 
 static void __declspec(naked) DropIntoContainerHack() {
 	static const DWORD DropIntoContainer_back = 0x47649D; // normal operation
-	static const DWORD DropIntoContainer_skip = 0x476503;
+	static const DWORD DropIntoContainer_skip = 0x476503; // exit drop_into_container_
 	__asm {
-		pushadc;
-		mov  ecx, ebp;                // contaner ptr
-		mov  edx, esi;                // item
-		mov  eax, [esp + 0x10 + 12];  // call address
-		push eax;
+		test ecx, ecx;
+		js   skipDrop;
+		push ecx; //pushadc;
+		mov  edx, esi;         // item
+		mov  ecx, ebp;         // contaner ptr
+		push [esp + 0x10 + 4]; // call address
 		call DropIntoContainer;
-		cmp  eax, -1;                 // ret value
-		popadc;
-		jne  skipdrop;
+		cmp  eax, -1;          // ret value
+		pop  ecx; //popadc;
+		jne  skipDrop;
 		jmp  DropIntoContainer_back;
-skipdrop:
+skipDrop:
 		mov  eax, -1;
 		jmp  DropIntoContainer_skip;
 	}
@@ -269,7 +270,6 @@ static void __declspec(naked) DropIntoContainerHandSlotHack() {
 }
 
 static void __declspec(naked) DropAmmoIntoWeaponHook() {
-	//static const DWORD DropAmmoIntoWeaponHack_back = 0x47658D; // proceed with reloading
 	static const DWORD DropAmmoIntoWeaponHack_return = 0x476643;
 	__asm {
 		pushadc;
@@ -278,13 +278,11 @@ static void __declspec(naked) DropAmmoIntoWeaponHook() {
 		push 4;                     // event: weapon reloading
 		call InventoryMoveHook_Script;
 		cmp  eax, -1;               // ret value
-		popadc;
 		jne  donothing;
+		popadc;
 		jmp  fo::funcoffs::item_w_can_reload_;
-		//mov  ebx, 1;   // overwritten code
-		//jmp  DropAmmoIntoWeaponHack_back;
 donothing:
-		add  esp, 4;   // destroy return address
+		add  esp, 4*4; // destroy all pushed values and return address
 		xor  eax, eax; // result 0
 		jmp  DropAmmoIntoWeaponHack_return;
 	}
@@ -384,7 +382,7 @@ static void __declspec(naked) InvenWieldFuncHook() {
 	}
 
 	// right hand slot?
-	if (args[2] != fo::INVEN_TYPE_RIGHT_HAND && fo::GetItemType((fo::GameObject*)args[1]) != fo::item_type_armor) {
+	if (args[2] != fo::INVEN_TYPE_RIGHT_HAND && fo::func::item_get_type((fo::GameObject*)args[1]) != fo::item_type_armor) {
 		args[2] = fo::INVEN_TYPE_LEFT_HAND;
 	}
 	InvenWieldHook_ScriptPart(1); // wield event

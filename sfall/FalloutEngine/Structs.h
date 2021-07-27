@@ -61,12 +61,13 @@ struct Art {
 struct AnimationSet {
 	long currentAnim;
 	long counter;
-	long animCounter;
+	long totalAnimCount;
 	long flags;
+
 	struct Animation {
-		long number;
-		long source;
-		long target;
+		long animType;
+		GameObject* source;
+		GameObject* target;
 		long data1;
 		long elevation;
 		long animCode;
@@ -80,6 +81,33 @@ struct AnimationSet {
 };
 
 static_assert(sizeof(AnimationSet) == 2656, "Incorrect AnimationSet definition.");
+
+struct AnimationSad {
+	long flags;
+	GameObject* source;
+	long fid;
+	long animCode;
+	long ticks;
+	long tpf;       // fps
+	long animSetSlot;
+	long pathCount; // len
+	long animStep;  // current step in rotationData/pathData
+	short dstTile;
+	char rotation1;
+	char rotation2;
+
+	union {
+		long rotationData[800];
+		struct BuildPathData {
+			long tile;
+			long elevation;
+			long sX;
+			long sY;
+		} pathData[200];
+	};
+};
+
+static_assert(sizeof(AnimationSad) == 3240, "Incorrect AnimationSad definition.");
 
 // Bounding rectangle, used by tile_refresh_rect and related functions.
 struct BoundRect {
@@ -152,6 +180,7 @@ struct GameObject {
 			long damageLastTurn;
 			long aiPacket;
 			long teamNum;
+			// current target or the attacker who caused damage in the previous combat turn
 			GameObject* whoHitMe;
 			long health;
 			long rads;
@@ -172,19 +201,11 @@ struct GameObject {
 			inline bool IsActiveNotDead() {
 				return ((damageFlags & (DamageFlag::DAM_DEAD | DamageFlag::DAM_KNOCKED_OUT | DamageFlag::DAM_LOSE_TURN)) == 0);
 			}
-			inline bool IsNotActiveAndDead() {
+			inline bool IsNotActiveOrDead() {
 				return ((damageFlags & (DamageFlag::DAM_DEAD | DamageFlag::DAM_KNOCKED_OUT | DamageFlag::DAM_LOSE_TURN)) != 0);
 			}
 			inline bool IsFleeing() {
 				return ((combatState & CombatStateFlag::InFlee) != 0);
-			}
-
-			// Gets the current target or the attacker who dealt damage in the previous combat turn
-			inline GameObject* getHitTarget() {
-				return whoHitMe;
-			}
-			inline long getAP() {
-				return movePoints;
 			}
 		} critter;
 	};
@@ -289,7 +310,7 @@ struct Program {
 	long *codeStackPtr;
 	long field_8;
 	long field_C;
-	long *codePtr;
+	long codePosition;  // position in the code stack when reading script opcodes
 	long field_14;      // unused?
 	long field_18;      // unused?
 	long *dStackPtr;
@@ -299,24 +320,17 @@ struct Program {
 	long field_2C;
 	long *stringRefPtr;
 	long *procTablePtr;
-	long field_38;      // same as codeStackPtr
+	long *codeStack;    // same as codeStackPtr
 	long savedEnv[12];  // saved register values
 	long field_6C;      // unused?
 	long field_70;      // unused?
 	long field_74;      // unused?
-	long field_78;
-	long field_7C;
-	union {
-		long flags;
-		struct {
-			char flags1;
-			char flags2;
-			char flags3;
-			char flags4;
-		};
-	};
+	long timerTick;     // unused?
+	long func_7C;       // always null?
+	short flags;
+	short fetchOpcode;
 	long currentScriptWin; // current window for executing script
-	long field_88;
+	long shouldRemove;
 };
 
 static_assert(sizeof(Program) == 140, "Incorrect Program definition.");
@@ -433,6 +447,8 @@ struct FrmFile {            // sizeof 2954
 		BYTE *pixelData;
 		BYTE pixels[80 * 36]; // for tiles FRM
 	};
+
+	FrmFile() {};
 
 	// Returns a pointer to the data of the frame in the direction
 	FrmFrameData* GetFrameData(long dir, long frame) {
@@ -601,6 +617,19 @@ struct PremadeChar {
 	char path[20];
 	DWORD fid;
 	char unknown[20];
+};
+
+struct ProtoListBlock {
+	long* protoMem[16];
+	long  count;
+	ProtoListBlock* next;
+};
+
+struct ProtoList {
+	ProtoListBlock* block;
+	ProtoListBlock* lastBlock;
+	long countBlocks; // current
+	long totalCount;  // total number of prototypes for this type
 };
 
 // In-memory PROTO structure, not the same as PRO file format.
@@ -914,19 +943,19 @@ struct LSData {
 };
 
 struct AIcap {
-	long name;
+	const char* name;
 	long packet_num;
 	long max_dist;
 	long min_to_hit;
 	long min_hp;
-	long aggression;
+	long aggression; // unused
 	long hurt_too_much;
 	long secondary_freq;
 	long called_freq;
 	long font;
 	long color;
 	long outline_color;
-	long chance;
+	long chance_message;
 	long combat_message_data[24];
 	long area_attack_mode;
 	long run_away_mode;
@@ -934,12 +963,10 @@ struct AIcap {
 	long distance;
 	long attack_who;
 	long chem_use;
-	long chem_primary_desire;
-	long chem_primary_desire1;
-	long chem_primary_desire2;
+	long chem_primary_desire[3];
 	long disposition;
-	long body_type;
-	long general_type;
+	const char* body_type;    // unused
+	const char* general_type; // unused
 
 	inline AIpref::distance getDistance() {
 		return (AIpref::distance)distance;
@@ -1080,6 +1107,26 @@ struct AudioFile {
 	long  sample_rate;
 	long  channels;
 	long  position;
+};
+
+// aka PartyMemberRecoveryList
+struct ObjectListData {
+	GameObject* object;
+	fo::ScriptInstance* script;
+	long* localVarData;
+	ObjectListData* nextSaveList; // _itemSaveListHead
+};
+
+struct PartyMemberPerkListData {
+	long perkData[fo::Perk::PERK_count];
+};
+
+struct QuestData {
+	long location;
+	long description;
+	long gvarIndex;
+	long displayThreshold;
+	long completedThreshold;
 };
 
 #pragma pack(pop)

@@ -68,11 +68,10 @@ DWORD __stdcall Inventory::adjust_fid() {
 				indexNum = critterPro->fid & 0xFFF;
 			}
 			if (fo::var::i_worn != nullptr) {
-				fo::Proto* armorPro;
-				fo::GetProto(fo::var::i_worn->protoId, &armorPro);
+				fo::Proto* armorPro = fo::GetProto(fo::var::i_worn->protoId);
 				DWORD armorFid = fo::func::stat_level(fo::var::inven_dude, fo::STAT_gender) == fo::GENDER_FEMALE
-					? armorPro->item.armor.femaleFID
-					: armorPro->item.armor.maleFID;
+				               ? armorPro->item.armor.femaleFID
+				               : armorPro->item.armor.maleFID;
 
 				if (armorFid != -1) {
 					indexNum = armorFid;
@@ -80,8 +79,8 @@ DWORD __stdcall Inventory::adjust_fid() {
 			}
 		}
 		auto itemInHand = fo::func::intface_is_item_right_hand()
-			? fo::var::i_rhand
-			: fo::var::i_lhand;
+		                ? fo::var::i_rhand
+		                : fo::var::i_lhand;
 
 		if (itemInHand != nullptr) {
 			fo::Proto* itemPro;
@@ -110,7 +109,7 @@ static void __declspec(naked) adjust_fid_hack() {
 }
 
 void Inventory::init() {
-	// Replace functions
+	// Replace adjust_fid_ function
 	sf::MakeJump(fo::funcoffs::adjust_fid_, adjust_fid_hack); // 0x4716E8
 }
 

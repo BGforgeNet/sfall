@@ -43,15 +43,21 @@ __forceinline void sf_rect_free(fo::RectList* rect) {
 }
 
 // returns message string from given file or "Error" when not found
-const char* GetMessageStr(const fo::MessageList* fileAddr, long messageId);
+const char* GetMessageStr(const fo::MessageList* file, long messageId);
 
 // similar to GetMessageStr, but returns nullptr when no message is found
-const char* MessageSearch(const fo::MessageList* fileAddr, long messageId);
+const char* MessageSearch(const fo::MessageList* file, long messageId);
+
+fo::MessageNode* GetMsgNode(fo::MessageList* msgList, int msgNum);
+
+char* GetMsg(fo::MessageList* msgList, int msgNum, int msgType);
 
 fo::Queue* QueueFind(fo::GameObject* object, long type);
 
 // returns weapon animation code
 long AnimCodeByWeapon(fo::GameObject* weapon);
+
+bool CheckProtoID(DWORD pid);
 
 // returns False if the prototype does not exist, or pointer to prototype by PID in the outProto argument
 bool GetProto(long pid, fo::Proto** outProto);
@@ -72,7 +78,7 @@ void SkillGetTags(long* result, long num);
 // wrapper for skill_set_tags with bounds checking
 void SkillSetTags(long* tags, long num);
 
-long __fastcall GetItemType(fo::GameObject* item);
+long GetItemType(fo::GameObject* item);
 
 __declspec(noinline) fo::GameObject* GetItemPtrSlot(fo::GameObject* critter, fo::InvenType slot);
 
@@ -126,7 +132,7 @@ void DrawToSurface(long width, long height, long fromX, long fromY, long fromWid
 void DrawToSurface(long width, long height, long fromX, long fromY, long fromWidth, BYTE* fromSurf, long toX, long toY, long toWidth, long toHeight, BYTE* toSurf);
 
 // Fills the specified interface window with index color
-void WinFillRect(long winID, long x, long y, long width, long height, BYTE indexColor);
+bool WinFillRect(long winID, long x, long y, long width, long height, BYTE indexColor);
 
 // Fills the specified interface window with index color 0 (black color)
 void ClearWindow(long winID, bool refresh = true);
