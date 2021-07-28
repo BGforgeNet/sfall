@@ -3,7 +3,7 @@ name: github pages
 on:
   push:
     branches:
-      - master
+      - better-docs
 
 jobs:
   deploy:
