@@ -21,10 +21,10 @@ jobs:
         id: sync-master
         uses: aormsby/Fork-Sync-With-Upstream-action@v3.2
         with:
-          upstream_repository: phobos2077/sfall
-          upstream_branch: master
-          target_branch: master
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          upstream_sync_repo: phobos2077/sfall
+          upstream_sync_branch: master
+          target_sync_branch: master
+          target_repo_token: ${{ secrets.GITHUB_TOKEN }}
 
   sync_better_docs:
     runs-on: ubuntu-latest
@@ -41,7 +41,7 @@ jobs:
         id: sync-better-docs
         uses: aormsby/Fork-Sync-With-Upstream-action@v3.2
         with:
-          upstream_repository: phobos2077/sfall
-          upstream_branch: master
-          target_branch: better-docs
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          upstream_sync_repo: phobos2077/sfall
+          upstream_sync_branch: master
+          target_sync_branch: better-docs
+          target_repo_token: ${{ secrets.GITHUB_TOKEN }}
