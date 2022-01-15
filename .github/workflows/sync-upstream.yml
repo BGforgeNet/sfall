@@ -19,7 +19,7 @@ jobs:
 
       - name: Pull (Fast-Forward) upstream changes
         id: sync-master
-        uses: aormsby/Fork-Sync-With-Upstream-action@v3.2
+        uses: aormsby/Fork-Sync-With-Upstream-action@v3.1
         with:
           upstream_sync_repo: phobos2077/sfall
           upstream_sync_branch: master
@@ -39,7 +39,7 @@ jobs:
 
       - name: Pull (Fast-Forward) upstream changes (better-docs)
         id: sync-better-docs
-        uses: aormsby/Fork-Sync-With-Upstream-action@v3.2
+        uses: aormsby/Fork-Sync-With-Upstream-action@v3.1
         with:
           upstream_sync_repo: phobos2077/sfall
           upstream_sync_branch: master
