@@ -32,6 +32,8 @@
 #include "MainLoopHook.h"
 #include "Worldmap.h"
 
+#include "SubModules\ObjectName.h"
+
 #include "Scripting\Arrays.h"
 #include "Scripting\Opcodes.h"
 #include "Scripting\OpcodeContext.h"
@@ -426,8 +428,9 @@ void __fastcall SetSelfObject(fo::Program* script, fo::GameObject* obj) {
 	}
 }
 
-// loads script from .int file into a sScriptProgram struct, filling script pointer and proc lookup table
+// loads script from .int file into a ScriptProgram struct, filling script pointer and proc lookup table
 void InitScriptProgram(ScriptProgram &prog, const char* fileName, bool fullPath) {
+	prog.initialized = false;
 	fo::Program* scriptPtr = (fullPath)
 	                       ? fo::func::allocateProgram(fileName)
 	                       : fo::func::loadProgram(fileName);
@@ -439,14 +442,13 @@ void InitScriptProgram(ScriptProgram &prog, const char* fileName, bool fullPath)
 		for (int i = 0; i < fo::Scripts::ScriptProc::count; ++i) {
 			prog.procLookup[i] = fo::func::interpretFindProcedure(prog.ptr, procTable[i]);
 		}
-		prog.initialized = false;
 	} else {
 		prog.ptr = nullptr;
 	}
 }
 
 void RunScriptProgram(ScriptProgram &prog) {
-	if (!prog.initialized) {
+	if (!prog.initialized && prog.ptr) {
 		fo::func::runProgram(prog.ptr);
 		fo::func::interpret(prog.ptr, -1);
 		prog.initialized = true;
@@ -559,12 +561,12 @@ static void PrepareGlobalScriptsListByMask() {
 					fo::func::debug_printf("\n[SFALL] Script: %s will not be executed. A script with the same name already exists in another directory.", fullPath);
 					continue;
 				}
-				globalScriptFilesList.insert(std::make_pair(baseName, fullPath)); // script files should be sorted in alphabetical order
+				globalScriptFilesList.emplace(std::move(baseName), std::move(fullPath)); // script files should be sorted in alphabetical order
 			}
 		}
 		fo::func::db_free_file_list(&filenames, 0);
-		globalScripts.reserve(globalScriptFilesList.size());
 	}
+	globalScripts.reserve(globalScriptFilesList.size());
 }
 
 // this runs before the game was loaded/started
@@ -942,7 +944,7 @@ void ScriptExtender::init() {
 	idle = IniReader::GetConfigInt("Misc", "ProcessorIdle", -1);
 	if (idle > -1 && idle > 30) idle = 30;
 
-	arraysBehavior = IniReader::GetConfigInt("Misc", "arraysBehavior", 1);
+	arraysBehavior = IniReader::GetConfigInt("Misc", "ArraysBehavior", 1);
 	if (arraysBehavior > 0) {
 		arraysBehavior = 1; // only 1 and 0 allowed at this time
 		dlogr("New arrays behavior enabled.", DL_SCRIPT);
@@ -1007,7 +1009,8 @@ void ScriptExtender::init() {
 		MakeCall(0x423DEB, (void*)fo::funcoffs::compute_damage_);
 	}
 
-	InitNewOpcodes();
+	Opcodes::InitNew();
+	ObjectName::init();
 
 	ScriptExtender::OnMapExit() += ClearEventsOnMapExit; // for reordering the execution of functions before exiting the map
 }

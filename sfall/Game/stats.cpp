@@ -22,9 +22,9 @@ int Stats::trait_level(DWORD traitID) {
 	return sf::Perks::DudeHasTrait(traitID);
 }
 
-// Support the player's party members
+// Support the player's party members (disabled until fully implemented, to avoid unexpected errors)
 int Stats::perk_level(fo::GameObject* source, DWORD perkID) {
-	if (source != fo::var::obj_dude && !fo::IsPartyMember(source)) return 0;
+	if (source != fo::var::obj_dude /*&& !fo::util::IsPartyMember(source)*/) return 0;
 	return fo::func::perk_level(source, perkID);
 }
 
@@ -107,7 +107,7 @@ int __stdcall Stats::trait_adjust_stat(DWORD statID) {
 	return result;
 }
 
-static void __declspec(naked) trait_adjust_stat_hack() {
+static void __declspec(naked) trait_adjust_stat_replacement() {
 	__asm {
 		push edx;
 		push ecx;
@@ -121,7 +121,7 @@ static void __declspec(naked) trait_adjust_stat_hack() {
 
 void Stats::init() {
 	// Replace trait_adjust_stat_ function
-	sf::MakeJump(fo::funcoffs::trait_adjust_stat_, trait_adjust_stat_hack); // 0x4B3C7C
+	sf::MakeJump(fo::funcoffs::trait_adjust_stat_, trait_adjust_stat_replacement); // 0x4B3C7C
 
 	// Fix the carry weight penalty of the Small Frame trait not being applied to bonus Strength points
 	smallFrameTraitFix = (sf::IniReader::GetConfigInt("Misc", "SmallFrameFix", 0) != 0);

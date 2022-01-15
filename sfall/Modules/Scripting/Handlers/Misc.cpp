@@ -31,6 +31,8 @@
 #include "..\..\ScriptExtender.h"
 #include "..\..\Sound.h"
 
+#include "..\..\SubModules\ObjectName.h"
+
 #include "..\Arrays.h"
 
 #include "Misc.h"
@@ -86,9 +88,9 @@ void op_set_movie_path(OpcodeContext& ctx) {
 void op_get_year(OpcodeContext& ctx) {
 	int year = 0;
 	__asm {
-		xor eax, eax;
-		xor edx, edx;
-		lea ebx, year;
+		xor  eax, eax;
+		xor  edx, edx;
+		lea  ebx, year;
 		call fo::funcoffs::game_time_date_;
 	}
 	ctx.setReturn(year);
@@ -499,6 +501,13 @@ void mf_get_ini_section(OpcodeContext& ctx) {
 
 void mf_set_quest_failure_value(OpcodeContext& ctx) {
 	QuestList::AddQuestFailureValue(ctx.arg(0).rawValue(), ctx.arg(1).rawValue());
+}
+
+void mf_set_scr_name(OpcodeContext& ctx) {
+	long sid = fo::func::scr_find_sid_from_program(ctx.program());
+	if (sid == -1) return;
+
+	ObjectName::SetName(sid, ctx.arg(0).strValue());
 }
 
 }

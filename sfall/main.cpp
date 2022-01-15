@@ -20,7 +20,9 @@
 
 #include <psapi.h>
 
+#include "main.h"
 #include "FalloutEngine\Fallout2.h"
+
 #include "ModuleManager.h"
 #include "Modules\Module.h"
 #include "Modules\AI.h"
@@ -39,6 +41,7 @@
 #include "Modules\DebugEditor.h"
 #include "Modules\Drugs.h"
 #include "Modules\Elevators.h"
+#include "Modules\EngineTweaks.h"
 #include "Modules\Explosions.h"
 #include "Modules\ExtraSaveSlots.h"
 #include "Modules\FileSystem.h"
@@ -52,8 +55,8 @@
 #include "Modules\KillCounter.h"
 #include "Modules\LoadGameHook.h"
 #include "Modules\LoadOrder.h"
-#include "Modules\MainMenu.h"
 #include "Modules\MainLoopHook.h"
+#include "Modules\MainMenu.h"
 #include "Modules\Message.h"
 #include "Modules\MetaruleExtender.h"
 #include "Modules\MiscPatches.h"
@@ -73,6 +76,7 @@
 #include "Modules\Stats.h"
 #include "Modules\TalkingHeads.h"
 #include "Modules\Tiles.h"
+#include "Modules\Unarmed.h"
 #include "Modules\Worldmap.h"
 
 #include "CRC.h"
@@ -80,8 +84,6 @@
 #include "ReplacementFuncs.h"
 #include "Translate.h"
 #include "version.h"
-
-#include "main.h"
 
 ddrawDll ddraw;
 
@@ -99,16 +101,7 @@ DWORD HRPAddress(DWORD addr) {
 	return (hrpDLLBaseAddr + (addr & 0xFFFFF));
 }
 
-char falloutConfigName[65] = {0};
-
-void InitReplacementHacks() {
-	game::Inventory::init();
-	game::Items::init();
-	game::Render::init();
-	game::Skills::init();
-	game::Stats::init();
-	game::Tilemap::init();
-}
+char falloutConfigName[65];
 
 static void InitModules() {
 	dlogr("In InitModules", DL_MAIN);
@@ -117,53 +110,61 @@ static void InitModules() {
 
 	// initialize all modules
 	manager.add<BugFixes>();    // fixes should be applied at the beginning
+	manager.add<SpeedPatch>();
 	manager.add<Graphics>();
 	manager.add<Input>();
+	manager.add<FileSystem>();
 	manager.add<LoadOrder>();
 	manager.add<LoadGameHook>();
 	manager.add<MainLoopHook>();
-	manager.add<Movies>();
-	manager.add<MainMenu>();
+
+	manager.add<EngineTweaks>();
+	manager.add<Books>();
+	manager.add<Criticals>();
+	manager.add<Elevators>();
+	manager.add<Unarmed>();
+
+	manager.add<Animations>();
+	manager.add<BarBoxes>();
+	manager.add<Explosions>();
+	manager.add<Message>();
 	manager.add<Interface>();
-	manager.add<Objects>();
-	manager.add<SpeedPatch>();
-	manager.add<PlayerModel>();
 	manager.add<Worldmap>();
+	manager.add<Tiles>();
+	manager.add<Movies>();
+	manager.add<Sound>();
+	manager.add<MiscPatches>();
+
+	manager.add<AI>();
+	manager.add<DamageMod>();
+	manager.add<BurstMods>();
+
+	manager.add<Inventory>();
+	manager.add<Objects>();
 	manager.add<Stats>();
 	manager.add<CritterStats>();
 	manager.add<CritterPoison>();
 	manager.add<Perks>();
-	manager.add<Combat>();
 	manager.add<Skills>();
-	manager.add<FileSystem>();
-	manager.add<Criticals>();
-	manager.add<Karma>();
-	manager.add<Tiles>();
-	manager.add<Credits>();
-	manager.add<QuestList>();
-	manager.add<Premade>();
-	manager.add<Sound>();
-	manager.add<Reputations>();
-	manager.add<Console>();
-	manager.add<ExtraSaveSlots>();
-	manager.add<Inventory>();
 	manager.add<Drugs>();       // should be loaded before PartyControl
 	manager.add<PartyControl>();
-	manager.add<BurstMods>();
-	manager.add<Books>();
-	manager.add<Explosions>();
-	manager.add<Message>();
-	manager.add<Elevators>();
+	manager.add<Combat>();
+
+	manager.add<PlayerModel>();
+	manager.add<Karma>();
+	manager.add<Premade>();
+	manager.add<Reputations>();
 	manager.add<KillCounter>();
-	//
-	manager.add<AI>();
-	manager.add<DamageMod>();
-	manager.add<Animations>();
-	manager.add<BarBoxes>();
+
+	manager.add<MainMenu>();
 	manager.add<HeroAppearance>();
-	manager.add<MiscPatches>();
 	manager.add<TalkingHeads>();
 	manager.add<ScriptShaders>();
+
+	manager.add<ExtraSaveSlots>();
+	manager.add<QuestList>();
+	manager.add<Credits>();
+	manager.add<Console>();
 
 	// all built-in events(delegates) of modules should be executed before running the script handlers
 	manager.add<MetaruleExtender>();
@@ -177,7 +178,7 @@ static void InitModules() {
 	dlogr("Leave InitModules", DL_MAIN);
 }
 
-static void LoadHRPModule() {
+static void GetHRPModule() {
 	static const DWORD loadFunc = 0x4FE1D0;
 	HMODULE dll;
 	__asm call loadFunc; // get HRP loading address
@@ -210,19 +211,23 @@ static void CompatModeCheck(HKEY root, const char* filepath, int extra) {
 	}
 }
 
-inline void SfallInit() {
-	// enabling debugging features
-	isDebug = (IniReader::GetIntDefaultConfig("Debugging", "Enable", 0) != 0);
-	if (isDebug) {
-		LoggingInit();
-		if (!ddraw.dll) dlogr("Error: Cannot load the original ddraw.dll library.", DL_MAIN);
-	}
+static int CheckEXE() {
+	return std::strncmp((const char*)0x53C938, "FALLOUT Mapper", 14);
+}
+
+static void SfallInit() {
+	if (!CheckEXE()) return;
 
 	char filepath[MAX_PATH];
 	GetModuleFileName(0, filepath, MAX_PATH);
 
-	CRC(filepath);
+	if (!CRC(filepath)) return;
 
+	LoggingInit();
+	if (!ddraw.dll) dlog("Error: Cannot load the original ddraw.dll library.\n");
+
+	// enabling debugging features
+	isDebug = (IniReader::GetIntDefaultConfig("Debugging", "Enable", 0) != 0);
 	if (!isDebug || !IniReader::GetIntDefaultConfig("Debugging", "SkipCompatModeCheck", 0)) {
 		int is64bit;
 		typedef int (__stdcall *chk64bitproc)(HANDLE, int*);
@@ -280,10 +285,10 @@ defaultIni:
 
 	hrpIsEnabled = (*(DWORD*)0x4E4480 != 0x278805C7); // check if HRP is enabled
 	if (hrpIsEnabled) {
-		LoadHRPModule();
+		GetHRPModule();
 		MODULEINFO info;
 		if (GetModuleInformation(GetCurrentProcess(), (HMODULE)hrpDLLBaseAddr, &info, sizeof(info)) && info.SizeOfImage >= 0x39940 + 7) {
-			if (*(BYTE*)HRPAddress(0x10039940 + 7) == 0 && strncmp((const char*)HRPAddress(0x10039940), "4.1.8", 5) == 0) {
+			if (GetByteHRPValue(HRP_VAR_VERSION_STR + 7) == 0 && std::strncmp((const char*)HRPAddress(HRP_VAR_VERSION_STR), "4.1.8", 5) == 0) {
 				hrpVersionValid = true;
 			}
 		}

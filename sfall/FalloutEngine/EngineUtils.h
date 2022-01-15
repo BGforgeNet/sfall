@@ -1,20 +1,20 @@
 /*
-* sfall
-* Copyright (C) 2008-2016 The sfall team
-*
-* This program is free software: you can redistribute it and/or modify
-* it under the terms of the GNU General Public License as published by
-* the Free Software Foundation, either version 3 of the License, or
-* (at your option) any later version.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program. If not, see <http://www.gnu.org/licenses/>.
-*/
+ *    sfall
+ *    Copyright (C) 2008-2016  The sfall team
+ *
+ *    This program is free software: you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation, either version 3 of the License, or
+ *    (at your option) any later version.
+ *
+ *    This program is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ *
+ *    You should have received a copy of the GNU General Public License
+ *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
 #pragma once
 
@@ -30,13 +30,15 @@
 
 namespace fo
 {
+namespace util
+{
 
 __inline void DisplayPrint(const std::string& str) {
 	fo::func::display_print(str.c_str());
 }
 
 // rect_free_ function for inline implementation
-__forceinline void sf_rect_free(fo::RectList* rect) {
+__forceinline void rect_free(fo::RectList* rect) {
 	fo::RectList* front = fo::var::rectList;
 	fo::var::rectList = rect;
 	rect->nextRect = front;
@@ -82,13 +84,22 @@ long GetItemType(fo::GameObject* item);
 
 __declspec(noinline) fo::GameObject* GetItemPtrSlot(fo::GameObject* critter, fo::InvenType slot);
 
+fo::AttackType GetHandSlotPrimaryAttack(fo::HandSlot slot);
+fo::AttackType GetHandSlotSecondaryAttack(fo::HandSlot slot);
+fo::HandSlotMode GetHandSlotMode(fo::HandSlot slot);
+
 long& GetActiveItemMode();
 
 fo::GameObject* GetActiveItem();
 
+// Hand: 0 - left, 1 - right
+fo::AttackType GetSlotHitMode(fo::HandSlot hand);
+
 long GetCurrentAttackMode();
 
 fo::AttackSubType GetWeaponType(DWORD weaponFlag);
+
+long ObjIsOpenable(fo::GameObject* object);
 
 bool HeroIsFemale();
 
@@ -151,8 +162,8 @@ DWORD GetTextWidth(const char* textMsg);
 DWORD GetTextWidthFM(const char* textMsg);
 
 // get width of Char for current font
-DWORD GetCharWidth(char charVal);
-DWORD GetCharWidthFM(char charVal);
+DWORD GetCharWidth(BYTE charVal);
+DWORD GetCharWidthFM(BYTE charVal);
 
 // get maximum string length for current font - if all characters were maximum width
 DWORD GetMaxTextWidth(const char* textMsg);
@@ -171,4 +182,5 @@ void RefreshGNW(bool skipOwner = false);
 
 fo::UnlistedFrm *LoadUnlistedFrm(char *frmName, unsigned int folderRef);
 
+}
 }

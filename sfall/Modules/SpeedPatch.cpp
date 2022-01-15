@@ -30,16 +30,31 @@ namespace sfall
 
 static const DWORD offsets[] = {
 	// GetTickCount calls
-	0x4C9375, 0x4C93E8, 0x4C93C0, 0x4FE01E,
-	0x4C9384, 0x4C9D2E, 0x4C8D34,
+	0x4C9375, // get_time_
+	0x4C93E8, // elapsed_time_
+	0x4C93C0, // block_for_tocks_
+	0x4C9384, // pause_for_tocks_
+	0x4FE01E, // unused???
+	0x4C9D2E, // GNW95_process_message_
+	0x4C8D34, // GNW_do_bk_process_
+
 	// Delayed GetTickCount calls
 	0x4FDF64,
+
 	// timeGetTime calls
-	0x4A3179, 0x4A325D, 0x4F482B, 0x4FE036,
-	0x4F4E53, 0x4F5542, 0x4F56CC, 0x4F59C6, // for mve
+//	0x4A3179, // init_random_ (unused)
+//	0x4A325D, // timer_read_
+//	0x4F482B, // unused
+	0x4FE036, // unused???
+
+	// Affect the playback speed of MVE video files without an audio track
+//	0x4F4E53, // syncWait_
+//	0x4F5542, // syncInit_
+//	0x4F56CC, 0x4F59C6, // MVE_syncSync_
 };
 
 static DWORD getLocalTimeOffs;
+
 DWORD SpeedPatch::getTickCountOffs = (DWORD)&GetTickCount;
 
 DWORD SpeedPatch::getTickCount() {
@@ -50,20 +65,35 @@ static bool enabled = true;
 static bool toggled = false;
 static bool slideShow = false;
 
-static double multi;
+static float multi;
 static DWORD sfallTickCount = 0;
 static DWORD lastTickCount;
-static double tickCountFraction = 0.0;
+static float tickCountFraction = 0.0f;
 
 static __int64 startTime;
 
 static struct SpeedCfg {
 	int key;
-	double multiplier;
+	float multiplier;
 } *speed = nullptr;
 
 static int modKey[2];
 static int toggleKey;
+
+static bool defaultDelay = true;
+
+static void SetKeyboardDefaultDelay() {
+	if (defaultDelay) return;
+	defaultDelay = true;
+	fo::var::setInt(FO_VAR_GNW95_repeat_rate) = 80;
+	fo::var::setInt(FO_VAR_GNW95_repeat_delay) = 500;
+}
+
+static void SetKeyboardDelay() {
+	fo::var::setInt(FO_VAR_GNW95_repeat_rate) = static_cast<long>(80 * multi);
+	fo::var::setInt(FO_VAR_GNW95_repeat_delay) = static_cast<long>(500 * multi);
+	defaultDelay = false;
+}
 
 static DWORD __stdcall FakeGetTickCount() {
 	// Keyboard control
@@ -79,6 +109,7 @@ static DWORD __stdcall FakeGetTickCount() {
 				int key = speed[i].key;
 				if (key && KeyDown(key)) {
 					multi = speed[i].multiplier;
+					SetKeyboardDelay();
 					break;
 				}
 			}
@@ -94,16 +125,23 @@ static DWORD __stdcall FakeGetTickCount() {
 		return sfallTickCount;
 	}
 
-	double elapsed = (double)(newTickCount - lastTickCount);
+	float elapsed = static_cast<float>(newTickCount - lastTickCount);
 	lastTickCount = newTickCount;
 
 	// Multiply the tick count difference by the multiplier
-	if (enabled && !slideShow && !(GetLoopFlags() & (LoopFlag::INVENTORY | LoopFlag::INTFACEUSE | LoopFlag::INTFACELOOT | LoopFlag::DIALOG))) {
+	long mode;
+	if (IsGameLoaded() && enabled &&
+	    (!(mode = GetLoopFlags()) || mode == LoopFlag::COMBAT || mode == (LoopFlag::COMBAT | LoopFlag::PCOMBAT) || (mode & LoopFlag::WORLDMAP)) && !slideShow)
+	{
 		elapsed *= multi;
 		elapsed += tickCountFraction;
-		tickCountFraction = modf(elapsed, &elapsed);
+		tickCountFraction = std::modf(elapsed, &elapsed);
+		if (defaultDelay) SetKeyboardDelay();
+	} else {
+		SetKeyboardDefaultDelay();
 	}
-	sfallTickCount += (DWORD)elapsed;
+
+	sfallTickCount += static_cast<DWORD>(elapsed);
 
 	return sfallTickCount;
 }
@@ -138,6 +176,8 @@ void TimerInit() {
 	GetLocalTime(&time);
 	SystemTimeToFileTime(&time, (FILETIME*)&startTime);
 
+	if (!modKey[0]) return;
+
 	speed = new SpeedCfg[10];
 
 	char buf[2], spKey[10] = "SpeedKey#";
@@ -146,53 +186,51 @@ void TimerInit() {
 		_itoa(i, buf, 10);
 		spKey[8] = spMulti[10] = buf[0];
 		speed[i].key = IniReader::GetConfigInt("Input", spKey, 0);
-		speed[i].multiplier = IniReader::GetConfigInt("Speed", spMulti, 0) / 100.0;
+		speed[i].multiplier = IniReader::GetConfigInt("Speed", spMulti, 0) / 100.0f;
 	}
 }
 
 void SpeedPatch::init() {
+	int init = IniReader::GetConfigInt("Speed", "SpeedMultiInitial", 100);
+
 	if (IniReader::GetConfigInt("Speed", "Enable", 0)) {
 		modKey[0] = IniReader::GetConfigInt("Input", "SpeedModKey", 0);
-		int init = IniReader::GetConfigInt("Speed", "SpeedMultiInitial", 100);
-		if (init == 100 && !modKey[0]) return;
-
-		dlog("Applying speed patch.", DL_INIT);
-
-		switch (modKey[0]) {
-		case -1:
-			modKey[0] = DIK_LCONTROL;
-			modKey[1] = DIK_RCONTROL;
-			break;
-		case -2:
-			modKey[0] = DIK_LMENU;
-			modKey[1] = DIK_RMENU;
-			break;
-		case -3:
-			modKey[0] = DIK_LSHIFT;
-			modKey[1] = DIK_RSHIFT;
-			break;
-		default:
-			modKey[1] = 0;
-		}
-
-		multi = (double)init / 100.0;
 		toggleKey = IniReader::GetConfigInt("Input", "SpeedToggleKey", 0);
-
-		getTickCountOffs = (DWORD)&FakeGetTickCount;
-		getLocalTimeOffs = (DWORD)&FakeGetLocalTime;
-
-		int size = sizeof(offsets) / 4;
-		if (IniReader::GetConfigInt("Speed", "AffectPlayback", 0) == 0) size -= 4;
-
-		for (int i = 0; i < size; i++) {
-			SafeWrite32(offsets[i], (DWORD)&getTickCountOffs);
-		}
-		SafeWrite32(0x4FDF58, (DWORD)&getLocalTimeOffs);
-		HookCall(0x4A433E, scripts_check_state_hook);
-
-		TimerInit();
-		dlogr(" Done", DL_INIT);
 	}
+	if (init == 100 && !modKey[0]) return;
+
+	dlog("Applying speed patch.", DL_INIT);
+
+	switch (modKey[0]) {
+	case -1:
+		modKey[0] = DIK_LCONTROL;
+		modKey[1] = DIK_RCONTROL;
+		break;
+	case -2:
+		modKey[0] = DIK_LMENU;
+		modKey[1] = DIK_RMENU;
+		break;
+	case -3:
+		modKey[0] = DIK_LSHIFT;
+		modKey[1] = DIK_RSHIFT;
+		break;
+	default:
+		modKey[1] = 0;
+	}
+
+	multi = init / 100.0f;
+
+	getTickCountOffs = (DWORD)&FakeGetTickCount;
+	getLocalTimeOffs = (DWORD)&FakeGetLocalTime;
+
+	for (int i = 0; i < sizeof(offsets) / 4; i++) {
+		SafeWrite32(offsets[i], (DWORD)&getTickCountOffs);
+	}
+	SafeWrite32(0x4FDF58, (DWORD)&getLocalTimeOffs);
+	HookCall(0x4A433E, scripts_check_state_hook);
+
+	TimerInit();
+	dlogr(" Done", DL_INIT);
 }
 
 void SpeedPatch::exit() {
