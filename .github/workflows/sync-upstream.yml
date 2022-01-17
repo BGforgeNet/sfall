@@ -9,7 +9,7 @@ on:
 jobs:
   sync_master: # master follows upstream strictly
     runs-on: ubuntu-latest
-    name: Sync master with upstream
+    name: Sync master with upstream/master
     steps:
       - name: Checkout master
         uses: actions/checkout@v2
@@ -19,16 +19,17 @@ jobs:
 
       - name: Pull (Fast-Forward) upstream changes
         id: sync-master
-        uses: aormsby/Fork-Sync-With-Upstream-action@v3.1
+        uses: aormsby/Fork-Sync-With-Upstream-action@v3.2
         with:
           upstream_sync_repo: phobos2077/sfall
           upstream_sync_branch: master
           target_sync_branch: master
           target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+          shallow_since: '10 years'
 
   sync_better_docs:
     runs-on: ubuntu-latest
-    name: Sync better-docs with upstream master
+    name: Sync better-docs with upstream/master
     steps:
       - name: Checkout better-docs
         uses: actions/checkout@v2
@@ -39,9 +40,10 @@ jobs:
 
       - name: Pull (Fast-Forward) upstream changes (better-docs)
         id: sync-better-docs
-        uses: aormsby/Fork-Sync-With-Upstream-action@v3.1
+        uses: aormsby/Fork-Sync-With-Upstream-action@v3.2
         with:
           upstream_sync_repo: phobos2077/sfall
           upstream_sync_branch: master
           target_sync_branch: better-docs
           target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+          shallow_since: '10 years'
