@@ -47,3 +47,24 @@ jobs:
           target_sync_branch: better-docs
           target_repo_token: ${{ secrets.GITHUB_TOKEN }}
           shallow_since: '10 years'
+
+  sync_develop:
+    runs-on: ubuntu-latest
+    name: Sync develop with upstream/develop
+    steps:
+      - name: Checkout develop
+        uses: actions/checkout@v2
+        with:
+          ref: better-docs
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Pull (Fast-Forward) upstream changes (develop)
+        id: sync-develop
+        uses: aormsby/Fork-Sync-With-Upstream-action@v3.2
+        with:
+          upstream_sync_repo: phobos2077/sfall
+          upstream_sync_branch: develop
+          target_sync_branch: develop
+          target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+          shallow_since: '10 years'
