@@ -2,8 +2,8 @@ name: Sync with upstream
 
 on:
   schedule:
-    - cron: '33 7 * * *'
-  workflow_dispatch:  # click the button on Github repo!
+    - cron: "33 7 * * *"
+  workflow_dispatch: # click the button on Github repo!
   push:
 
 jobs:
@@ -23,9 +23,10 @@ jobs:
         with:
           upstream_sync_repo: sfall-team/sfall
           upstream_sync_branch: master
+          upstream_pull_args: "--ff-only --tags"
           target_sync_branch: master
           target_repo_token: ${{ secrets.GITHUB_TOKEN }}
-          shallow_since: '10 years'
+          shallow_since: "10 years"
 
   sync_better_docs:
     runs-on: ubuntu-latest
@@ -44,9 +45,10 @@ jobs:
         with:
           upstream_sync_repo: sfall-team/sfall
           upstream_sync_branch: master
+          upstream_pull_args: "--ff-only --tags"
           target_sync_branch: better-docs
           target_repo_token: ${{ secrets.GITHUB_TOKEN }}
-          shallow_since: '10 years'
+          shallow_since: "10 years"
 
   sync_develop:
     runs-on: ubuntu-latest
@@ -65,6 +67,7 @@ jobs:
         with:
           upstream_sync_repo: sfall-team/sfall
           upstream_sync_branch: develop
+          upstream_pull_args: "--ff-only --tags"
           target_sync_branch: develop
           target_repo_token: ${{ secrets.GITHUB_TOKEN }}
-          shallow_since: '10 years'
+          shallow_since: "10 years"
