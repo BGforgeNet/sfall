@@ -12,16 +12,16 @@ jobs:
     name: Sync master with upstream/master
     steps:
       - name: Checkout master
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: master
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull (Fast-Forward) upstream changes
         id: sync-master
-        uses: aormsby/Fork-Sync-With-Upstream-action@v3.2
+        uses: aormsby/Fork-Sync-With-Upstream-action@v3.4
         with:
-          upstream_sync_repo: phobos2077/sfall
+          upstream_sync_repo: sfall-team/sfall
           upstream_sync_branch: master
           target_sync_branch: master
           target_repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -32,7 +32,7 @@ jobs:
     name: Sync better-docs with upstream/master
     steps:
       - name: Checkout better-docs
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: better-docs
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -40,9 +40,9 @@ jobs:
 
       - name: Pull (Fast-Forward) upstream changes (better-docs)
         id: sync-better-docs
-        uses: aormsby/Fork-Sync-With-Upstream-action@v3.2
+        uses: aormsby/Fork-Sync-With-Upstream-action@v3.4
         with:
-          upstream_sync_repo: phobos2077/sfall
+          upstream_sync_repo: sfall-team/sfall
           upstream_sync_branch: master
           target_sync_branch: better-docs
           target_repo_token: ${{ secrets.GITHUB_TOKEN }}
@@ -53,7 +53,7 @@ jobs:
     name: Sync develop with upstream/develop
     steps:
       - name: Checkout develop
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: better-docs
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -61,9 +61,9 @@ jobs:
 
       - name: Pull (Fast-Forward) upstream changes (develop)
         id: sync-develop
-        uses: aormsby/Fork-Sync-With-Upstream-action@v3.2
+        uses: aormsby/Fork-Sync-With-Upstream-action@v3.4
         with:
-          upstream_sync_repo: phobos2077/sfall
+          upstream_sync_repo: sfall-team/sfall
           upstream_sync_branch: develop
           target_sync_branch: develop
           target_repo_token: ${{ secrets.GITHUB_TOKEN }}
