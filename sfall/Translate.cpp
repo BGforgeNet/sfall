@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2021  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -37,19 +37,19 @@ size_t Translate::Get(const char* section, const char* setting, const char* defa
 	return IniReader::GetString(section, setting, defaultValue, buffer, bufSize, translationIni.File());
 }
 
-std::string Translate::Get(const char* section, const char* setting, const char* defaultValue, size_t bufSize) {
-	return std::move(IniReader::GetString(section, setting, defaultValue, bufSize, translationIni.File()));
+std::string Translate::Get(const char* section, const char* setting, const char* defaultValue) {
+	return std::move(IniReader::GetString(section, setting, defaultValue, translationIni.File()));
 }
 
-std::vector<std::string> Translate::GetList(const char* section, const char* setting, const char* defaultValue, char delimiter, size_t bufSize) {
-	return std::move(IniReader::GetList(section, setting, defaultValue, bufSize, delimiter, translationIni.File()));
+std::vector<std::string> Translate::GetList(const char* section, const char* setting, const char* defaultValue, char delimiter) {
+	return std::move(IniReader::GetList(section, setting, defaultValue, delimiter, translationIni.File()));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 static void MakeLangTranslationPath(const char* config) {
 	char patches[65], language[32];
-	char fileConfig[65] = ".\\";
+	char fileConfig[67] = ".\\";
 	std::strcpy(&fileConfig[2], config);
 
 	IniReader::GetString("system", "language", "english", language, 32, fileConfig);
@@ -59,7 +59,7 @@ static void MakeLangTranslationPath(const char* config) {
 	while (*iniDef == '\\' || *iniDef == '/' || *iniDef == '.') iniDef++; // skip first characters
 	sprintf(translationIni.lang, "%s\\text\\%s\\%s", patches, language, iniDef);
 
-	translationIni.state = (GetFileAttributes(translationIni.lang) != INVALID_FILE_ATTRIBUTES);
+	translationIni.state = (GetFileAttributesA(translationIni.lang) != INVALID_FILE_ATTRIBUTES);
 }
 
 static std::string saveSfallDataFailMsg;
@@ -74,7 +74,7 @@ static void InitMessagesTranslate() {
 	combatBlockedMessage = Translate::Get("sfall", "BlockedCombat", "You cannot enter combat at this time.");
 	combatSaveFailureMsg = Translate::Get("sfall", "SaveInCombat", "Cannot save at this time.");
 	saveSfallDataFailMsg = Translate::Get("sfall", "SaveSfallDataFail", "ERROR saving extended savegame information! "
-	                                      "Check if other programs interfere with savegame files/folders and try again!");
+	                                      "Check if other programs interfere with savegame files/folders and try again.");
 }
 
 void Translate::init(const char* config) {

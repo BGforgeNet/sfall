@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2019  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -283,11 +283,12 @@ long Drugs::SetDrugAddictTimeOff(long pid, long time) {
 }
 
 void Drugs::init() {
-	auto drugsFile = IniReader::GetConfigString("Misc", "DrugsFile", "", MAX_PATH);
+	auto drugsFile = IniReader::GetConfigString("Misc", "DrugsFile", "");
 	if (!drugsFile.empty()) {
-		dlog("Applying drugs patch...", DL_INIT);
 		const char* iniDrugs = drugsFile.insert(0, ".\\").c_str();
+		if (GetFileAttributesA(iniDrugs) == INVALID_FILE_ATTRIBUTES) return;
 
+		dlog("Applying drugs patch...", DL_INIT);
 		JetWithdrawal = (IniReader::GetInt("main", "JetWithdrawal", 0, iniDrugs) == 1); // SafeWrite8(0x47A3A8, 0); item_wd_process_
 
 		int count = IniReader::GetInt("main", "Count", 0, iniDrugs);
@@ -344,7 +345,7 @@ void Drugs::init() {
 				LoadGameHook::OnGameReset() += ResetDrugs;
 			}
 		}
-		dlog_f(" (%d/%d drugs) Done\n", DL_INIT, drugsCount, count);
+		dlog_f(" (%d/%d drugs)\n", DL_INIT, drugsCount, count);
 	}
 }
 

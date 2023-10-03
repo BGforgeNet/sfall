@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2016  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -80,10 +80,6 @@ namespace sfall
 
 // Trap for Debugger
 #define BREAKPOINT __asm int 3
-
-// Macros for quick replacement of assembler opcodes pushad/popad
-#define pushadc __asm push eax __asm push edx __asm push ecx
-#define popadc __asm pop ecx __asm pop edx __asm pop eax
 
 extern bool versionCHI;
 

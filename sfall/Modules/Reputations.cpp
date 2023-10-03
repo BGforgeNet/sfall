@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2010  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ struct CityRep {
 static CityRep* repList = nullptr;
 
 void Reputations::init() {
-	auto cityRepList = IniReader::GetConfigList("Misc", "CityRepsList", "", 512);
+	auto cityRepList = IniReader::GetConfigList("Misc", "CityRepsList", "");
 	size_t count = cityRepList.size();
 	if (count) {
 		repList = new CityRep[count];

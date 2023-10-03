@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2016  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@ namespace sfall
 namespace script
 {
 
-ScriptValue::ScriptValue( DataType type, unsigned long value )
+ScriptValue::ScriptValue(DataType type, unsigned long value)
 {
 	_val.dw = value;
 	_type = type;
@@ -133,6 +133,10 @@ fo::GameObject* ScriptValue::object() const {
 
 unsigned long ScriptValue::rawValue() const {
 	return _val.dw;
+}
+
+long ScriptValue::intValue() const {
+	return _val.i;
 }
 
 const char* ScriptValue::strValue() const {

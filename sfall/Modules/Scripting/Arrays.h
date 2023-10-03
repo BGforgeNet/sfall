@@ -1,3 +1,21 @@
+/*
+ *    sfall
+ *    Copyright (C) 2008-2023  The sfall team
+ *
+ *    This program is free software: you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation, either version 3 of the License, or
+ *    (at your option) any later version.
+ *
+ *    This program is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ *
+ *    You should have received a copy of the GNU General Public License
+ *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #pragma once
 
 #include <functional>
@@ -11,7 +29,7 @@ namespace sfall
 namespace script
 {
 
-#define ARRAY_MAX_STRING        (255)  // maximum length of string to be stored as array key or value
+#define ARRAY_MAX_STRING       (1024)  // maximum length of string to be stored as array key or value (including null terminator)
 #define ARRAY_MAX_SIZE       (100000)  // maximum number of array elements,
                                        // so total maximum memory/disk footprint of one array is: 16 + (ARRAY_MAX_STRING + 8) * ARRAY_MAX_SIZE
 
@@ -50,6 +68,7 @@ public:
 		setByType(el.intVal, el.type);
 	}
 
+	void set(const ScriptValue& val);
 	void set(long val);
 	void set(float val);
 	void set(const char* val, int _len = -1);
@@ -184,11 +203,8 @@ ScriptValue GetArrayKey(DWORD id, int index);
 // get array element by index (list) or key (map)
 ScriptValue GetArray(DWORD id, const ScriptValue& key);
 
-// set array element by index or key (with checking the existence of the array ID)
-void SetArray(DWORD id, const ScriptValue& key, const ScriptValue& val, bool allowUnset);
-
 // set array element by index or key
-void setArray(DWORD id, const ScriptValue& key, const ScriptValue& val, bool allowUnset);
+void SetArray(DWORD id, const ScriptValue& key, const ScriptValue& val, bool allowUnset);
 
 // number of elements in list or pairs in map
 int LenArray(DWORD id);

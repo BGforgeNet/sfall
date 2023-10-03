@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2016  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -932,12 +932,12 @@ void ScriptExtender::init() {
 	OnInputLoop() += RunGlobalScriptsOnInput;
 	Worldmap::OnWorldmapLoop() += RunGlobalScriptsOnWorldMap;
 
-	globalScriptPathList = IniReader::GetConfigList("Scripts", "GlobalScriptPaths", "scripts\\gl*.int", 255);
-	for (unsigned int i = 0; i < globalScriptPathList.size(); i++) {
+	globalScriptPathList = IniReader::GetConfigList("Scripts", "GlobalScriptPaths", "scripts\\gl*.int");
+	for (size_t i = 0; i < globalScriptPathList.size(); i++) {
 		ToLowerCase(globalScriptPathList[i]);
 	}
 
-	iniConfigFolder = IniReader::GetConfigString("Scripts", "IniConfigFolder", "", 64);
+	iniConfigFolder = IniReader::GetConfigString("Scripts", "IniConfigFolder", "");
 	size_t len = iniConfigFolder.length();
 	if (len) {
 		char c = iniConfigFolder[len - 1];

@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2016  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ namespace sfall
 namespace script
 {
 
-enum class DataType : unsigned long {
+enum class DataType : unsigned short {
 	NONE  = 0,
 	INT   = 1,
 	FLOAT = 2,
@@ -56,6 +56,8 @@ public:
 	bool isString() const;
 
 	unsigned long rawValue() const;
+
+	long intValue() const;
 
 	float floatValue() const;
 

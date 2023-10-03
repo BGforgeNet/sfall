@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2016  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -105,53 +105,35 @@ void op_get_sfall_global_float(OpcodeContext& ctx) {
 	GetGlobalVar(ctx, DataType::FLOAT);
 }
 
-void __declspec(naked) op_get_sfall_arg() {
-	__asm {
-		mov  esi, ecx;
-		call HookCommon::GetHSArg;
-		mov  edx, eax;
-		mov  eax, ebx;
-		_RET_VAL_INT;
-		mov  ecx, esi;
-		retn;
-	}
+void op_get_sfall_arg(OpcodeContext& ctx) {
+	ctx.setReturn(HookCommon::GetHSArg());
 }
 
 void mf_get_sfall_arg_at(OpcodeContext& ctx) {
-	long argVal = 0;
 	long id = ctx.arg(0).rawValue();
 	if (id >= static_cast<long>(HookCommon::GetHSArgCount()) || id < 0) {
 		ctx.printOpcodeError("%s() - invalid value for argument.", ctx.getMetaruleName());
-	} else {
-		argVal = HookCommon::GetHSArgAt(id);
+		ctx.setReturn(0);
+		return;
 	}
-	ctx.setReturn(argVal);
+	ctx.setReturn(HookCommon::GetHSArgAt(id));
 }
 
 void op_get_sfall_args(OpcodeContext& ctx) {
 	DWORD argCount = HookCommon::GetHSArgCount();
 	DWORD id = CreateTempArray(argCount, 0);
-	DWORD* args = HookCommon::GetHSArgs();
 	for (DWORD i = 0; i < argCount; i++) {
-		arrays[id].val[i].set(*(long*)&args[i]);
+		arrays[id].val[i].set(HookCommon::GetHSArgAt(i));
 	}
 	ctx.setReturn(id);
 }
 
 void op_set_sfall_arg(OpcodeContext& ctx) {
-	HookCommon::SetHSArg(ctx.arg(0).rawValue(), ctx.arg(1).rawValue());
+	HookCommon::SetHSArg(ctx.arg(0).rawValue(), ctx.arg(1));
 }
 
-void __declspec(naked) op_set_sfall_return() {
-	__asm {
-		mov  esi, ecx;
-		_GET_ARG_INT(end);
-		push eax;
-		call HookCommon::SetHSReturn;
-end:
-		mov  ecx, esi;
-		retn;
-	}
+void op_set_sfall_return(OpcodeContext& ctx) {
+	HookCommon::SetHSReturn(ctx.arg(0));
 }
 
 void __declspec(naked) op_game_loaded() {
@@ -216,16 +198,25 @@ void mf_remove_timer_event(OpcodeContext& ctx) {
 	}
 }
 
-void op_sfall_ver_major(OpcodeContext& ctx) {
-	ctx.setReturn(VERSION_MAJOR);
+void __declspec(naked) op_sfall_ver_major() {
+	__asm {
+		mov  edx, VERSION_MAJOR;
+		_J_RET_VAL_TYPE(VAR_TYPE_INT);
+	}
 }
 
-void op_sfall_ver_minor(OpcodeContext& ctx) {
-	ctx.setReturn(VERSION_MINOR);
+void __declspec(naked) op_sfall_ver_minor() {
+	__asm {
+		mov  edx, VERSION_MINOR;
+		_J_RET_VAL_TYPE(VAR_TYPE_INT);
+	}
 }
 
-void op_sfall_ver_build(OpcodeContext& ctx) {
-	ctx.setReturn(VERSION_BUILD);
+void __declspec(naked) op_sfall_ver_build() {
+	__asm {
+		mov  edx, VERSION_BUILD;
+		_J_RET_VAL_TYPE(VAR_TYPE_INT);
+	}
 }
 
 }

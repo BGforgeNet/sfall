@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2016  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,8 @@ void op_substr(OpcodeContext&);
 void op_strlen(OpcodeContext&);
 
 void mf_string_compare(OpcodeContext&);
+
+void mf_string_find(OpcodeContext&);
 
 void op_sprintf(OpcodeContext&);
 

@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2011  Timeslip
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -359,7 +359,7 @@ static void __declspec(naked) SetDefaultAmmo() {
 		call fo::funcoffs::proto_ptr_;
 		mov  edx, [esp];
 		mov  eax, [edx + 0x5C];            // eax = default ammo pid
-		mov  [ecx + ammoPid], eax;         // set current ammo proto
+		mov  [ecx + ammoPid], eax;         // set current ammo pid
 		add  esp, 4;
 end:
 		pop  ecx;
@@ -556,6 +556,28 @@ skip:
 	}
 }
 
+// Allow passing non-weapon/armor items to invenWieldFunc_ engine function without error
+// It used to treat all non-armor items as "weapon" and try to check if critter had weapon animation,
+// which isn't valid for other item subtypes.
+static void __declspec(naked) invenWieldFunc_hack() {
+	static const DWORD invenWieldFunc_hack_back = 0x47285D;
+	static const DWORD invenWieldFunc_hack_skip = 0x4728A7;
+	using namespace fo;
+	using namespace Fields;
+	__asm {
+		mov  eax, edi; // weapon
+		call fo::funcoffs::item_get_type_;
+		cmp  eax, item_type_weapon;
+		je   isWeapon;
+		jmp  invenWieldFunc_hack_skip;
+isWeapon: // overwritten engine code
+		mov  eax, [esi + rotation]; // cur_rot
+		inc  eax;
+		push eax;
+		jmp  invenWieldFunc_hack_back;
+	}
+}
+
 static void __declspec(naked) do_move_timer_hook() {
 	static const DWORD DoMoveTimer_Ret = 0x476920;
 	__asm {
@@ -638,7 +660,7 @@ void Inventory::init() {
 			sizeLimitMode -= 4;
 			// item_total_weight_ patch
 			SafeWrite8(0x477EB3, CodeType::JumpShort);
-			SafeWriteBatch<BYTE>(0, {0x477EF5, 0x477F11, 0x477F29});
+			SafeWriteBatch<WORD>(0x9090, {0x477EF4, 0x477F10, 0x477F28});
 		}
 		invSizeMaxLimit = IniReader::GetConfigInt("Misc", "CritterInvSizeLimit", 100);
 
@@ -699,10 +721,11 @@ void Inventory::init() {
 		ApplyInvenApCostPatch();
 	}
 
-	if (IniReader::GetConfigInt("Misc", "StackEmptyWeapons", 0)) {
+	// Set default ammo pid for unloaded weapons to make them stack regardless of previously loaded ammo
+	//if (IniReader::GetConfigInt("Misc", "StackEmptyWeapons", 1)) {
 		MakeCall(0x4736C6, inven_action_cursor_hack);
 		HookCall(0x4772AA, item_add_mult_hook);
-	}
+	//}
 
 	// Do not call the 'Move Items' window when using drag and drop to reload weapons in the inventory
 	int ReloadReserve = IniReader::GetConfigInt("Misc", "ReloadReserve", -1);
@@ -741,6 +764,9 @@ void Inventory::init() {
 	// Note: the flag is not checked for the metarule(METARULE_INVEN_UNWIELD_WHO, x) function
 	HookCall(0x45B0CE, op_inven_unwield_hook); // with fix to update interface slot after unwielding
 	HookCall(0x45693C, op_wield_obj_critter_hook);
+
+	// Fix for invenWieldFunc_ (used by wield_obj_critter) to be able to put non-weapon/armor items into active slot
+	MakeJump(0x472858, invenWieldFunc_hack);
 }
 
 void Inventory::InvokeAdjustFid(long fid) {

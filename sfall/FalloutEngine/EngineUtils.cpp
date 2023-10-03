@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2016  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -206,9 +206,9 @@ fo::AttackSubType GetWeaponType(DWORD weaponFlag) {
 		fo::AttackSubType::MELEE,
 		fo::AttackSubType::MELEE,
 		fo::AttackSubType::THROWING,
-		fo::AttackSubType::GUNS,
-		fo::AttackSubType::GUNS,
-		fo::AttackSubType::GUNS
+		fo::AttackSubType::RANGED,
+		fo::AttackSubType::RANGED,
+		fo::AttackSubType::RANGED
 	};
 	DWORD type = weaponFlag & 0xF;
 	return (type < 9) ? weapon_types[type] : fo::AttackSubType::NONE;

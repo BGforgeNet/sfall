@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2016  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -73,7 +73,7 @@ static void __declspec(naked) wmRndEncounterOccurred_hack() {
 	__asm {
 		test ForceEncounterFlags, 0x1; // _NoCar flag
 		jnz  noCar;
-		cmp  ds:[FO_VAR_Move_on_Car], 0;
+		cmp  dword ptr ds:[FO_VAR_Move_on_Car], 0;
 		jz   noCar;
 		mov  edx, FO_VAR_carCurrentArea;
 		mov  eax, ForceEncounterMapID;
@@ -209,13 +209,13 @@ void mf_set_rest_mode(OpcodeContext& ctx) {
 void mf_set_rest_on_map(OpcodeContext& ctx) {
 	long mapId = ctx.arg(0).rawValue();
 	if (mapId < 0) {
-		ctx.printOpcodeError("%s() - invalid map number argument.", ctx.getMetaruleName());
+		ctx.printOpcodeError("%s() - invalid map number.", ctx.getMetaruleName());
 		ctx.setReturn(-1);
 		return;
 	}
 	long elev = ctx.arg(1).rawValue();
 	if (elev < -1 || elev > 2) {
-		ctx.printOpcodeError("%s() - invalid map elevation argument.", ctx.getMetaruleName());
+		ctx.printOpcodeError("%s() - invalid map elevation.", ctx.getMetaruleName());
 		ctx.setReturn(-1);
 	} else {
 		Worldmap::SetRestMapLevel(mapId, elev, ctx.arg(2).asBool());
@@ -226,7 +226,7 @@ void mf_get_rest_on_map(OpcodeContext& ctx) {
 	long result = -1;
 	long elev = ctx.arg(1).rawValue();
 	if (elev < 0 || elev > 2) {
-		ctx.printOpcodeError("%s() - invalid map elevation argument.", ctx.getMetaruleName());
+		ctx.printOpcodeError("%s() - invalid map elevation.", ctx.getMetaruleName());
 	} else {
 		result = Worldmap::GetRestMapLevel(elev, ctx.arg(0).rawValue());
 	}

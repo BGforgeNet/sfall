@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2016  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include "Handlers\Core.h"
 #include "Handlers\FileSystem.h"
 #include "Handlers\Graphics.h"
+#include "Handlers\IniFiles.h"
 #include "Handlers\Interface.h"
 #include "Handlers\Inventory.h"
 #include "Handlers\Math.h"
@@ -114,6 +115,8 @@ static SfallOpcodeInfo opcodeInfoArray[] = {
 	{0x1e1, "set_critical_table",         op_set_critical_table,        5, false,  0, {ARG_INT, ARG_INT, ARG_INT, ARG_INT, ARG_INT}},
 	{0x1e2, "get_critical_table",         op_get_critical_table,        4, true,   0, {ARG_INT, ARG_INT, ARG_INT, ARG_INT}},
 	{0x1e3, "reset_critical_table",       op_reset_critical_table,      4, false,  0, {ARG_INT, ARG_INT, ARG_INT, ARG_INT}},
+	{0x1e4, "get_sfall_arg",              op_get_sfall_arg,             0, true},
+	{0x1e5, "set_sfall_return",           op_set_sfall_return,          1, false,  0, {ARG_ANY}}, // hook script system will validate type
 	{0x1eb, "get_ini_string",             op_get_ini_string,            1, true,  -1, {ARG_STRING}},
 	{0x1ec, "sqrt",                       op_sqrt,                      1, true,   0, {ARG_NUMBER}},
 	{0x1ed, "abs",                        op_abs,                       1, true,   0, {ARG_NUMBER}},
@@ -150,9 +153,6 @@ static SfallOpcodeInfo opcodeInfoArray[] = {
 	{0x20d, "list_begin",                 op_list_begin,                1, true,   0, {ARG_INT}},
 	{0x20e, "list_next",                  op_list_next,                 1, true,   0, {ARG_INT}},
 	{0x20f, "list_end",                   op_list_end,                  1, false,  0, {ARG_INT}},
-	{0x210, "sfall_ver_major",            op_sfall_ver_major,           0, true},
-	{0x211, "sfall_ver_minor",            op_sfall_ver_minor,           0, true},
-	{0x212, "sfall_ver_build",            op_sfall_ver_build,           0, true},
 	{0x216, "set_critter_burst_disable",  op_set_critter_burst_disable, 2, false,  0, {ARG_OBJECT, ARG_INT}},
 	{0x217, "get_weapon_ammo_pid",        op_get_weapon_ammo_pid,       1, true,  -1, {ARG_OBJECT}},
 	{0x218, "set_weapon_ammo_pid",        op_set_weapon_ammo_pid,       2, false,  0, {ARG_OBJECT, ARG_INT}},
@@ -178,8 +178,10 @@ static SfallOpcodeInfo opcodeInfoArray[] = {
 	{0x237, "atoi",                       op_atoi,                      1, true,   0, {ARG_STRING}},
 	{0x238, "atof",                       op_atof,                      1, true,   0, {ARG_STRING}},
 	{0x239, "scan_array",                 op_scan_array,                2, true,  -1, {ARG_OBJECT, ARG_ANY}},
+	{0x23a, "get_tile_fid",               op_get_tile_fid,              1, true,   0, {ARG_INT}},
+	{0x23b, "modified_ini",               op_modified_ini,              0, true},
 	{0x23c, "get_sfall_args",             op_get_sfall_args,            0, true},
-	{0x23d, "set_sfall_arg",              op_set_sfall_arg,             2, false,  0, {ARG_INT, ARG_INT}},
+	{0x23d, "set_sfall_arg",              op_set_sfall_arg,             2, false,  0, {ARG_INT, ARG_ANY}}, // hook script system will validate type
 	{0x241, "get_npc_level",              op_get_npc_level,             1, true,  -1, {ARG_INTSTR}},
 	{0x242, "set_critter_skill_points",   op_set_critter_skill_points,  3, false,  0, {ARG_OBJECT, ARG_INT, ARG_INT}},
 	{0x243, "get_critter_skill_points",   op_get_critter_skill_points,  2, true,   0, {ARG_OBJECT, ARG_INT}},
@@ -273,7 +275,7 @@ static void __fastcall defaultOpcodeHandler(fo::Program* program, DWORD opcodeOf
 }
 
 void Opcodes::InitNew() {
-	dlogr("Adding additional opcodes", DL_SCRIPT);
+	dlog("Adding sfall opcodes.", DL_SCRIPT);
 
 	SafeWrite32(0x46E370, opcodeCount);    // Maximum number of allowed opcodes
 	SafeWrite32(0x46CE34, (DWORD)opcodes); // cmp check to make sure opcode exists
@@ -290,20 +292,22 @@ void Opcodes::InitNew() {
 	LoadGameHook::OnGameReset() += []() {
 		PipboyAvailableRestore();
 		ForceEncounterRestore(); // restore if the encounter did not happen
+		ResetIniCache();
 	};
 
 	if (int unsafe = IniReader::GetIntDefaultConfig("Debugging", "AllowUnsafeScripting", 0)) {
+		unsafeEnabled = true;
 		if (unsafe == 2) checkValidMemAddr = false;
-		dlogr("  Unsafe opcodes enabled.", DL_SCRIPT);
-		opcodes[0x1cf] = op_write_byte;
-		opcodes[0x1d0] = op_write_short;
-		opcodes[0x1d1] = op_write_int;
-		opcodes[0x21b] = op_write_string;
-		for (int i = 0x1d2; i < 0x1dc; i++) {
-			opcodes[i] = op_call_offset;
-		}
+		dlogr(" Unsafe opcodes enabled.", DL_SCRIPT);
 	} else {
-		dlogr("  Unsafe opcodes disabled.", DL_SCRIPT);
+		dlogr(" Unsafe opcodes disabled.", DL_SCRIPT);
+	}
+	opcodes[0x1cf] = op_write_byte;
+	opcodes[0x1d0] = op_write_short;
+	opcodes[0x1d1] = op_write_int;
+	opcodes[0x21b] = op_write_string;
+	for (int i = 0x1d2; i < 0x1dc; i++) {
+		opcodes[i] = op_call_offset;
 	}
 	opcodes[0x156] = op_read_byte;
 	opcodes[0x157] = op_read_short;
@@ -381,8 +385,6 @@ void Opcodes::InitNew() {
 
 	opcodes[0x1df] = op_get_bodypart_hit_modifier;
 	opcodes[0x1e0] = op_set_bodypart_hit_modifier;
-	opcodes[0x1e4] = op_get_sfall_arg;
-	opcodes[0x1e5] = op_set_sfall_return;
 	opcodes[0x1e6] = op_set_unspent_ap_bonus;
 	opcodes[0x1e7] = op_get_unspent_ap_bonus;
 	opcodes[0x1e8] = op_set_unspent_ap_perk_bonus;
@@ -391,6 +393,9 @@ void Opcodes::InitNew() {
 
 	opcodes[0x1f6] = op_nb_create_char;
 	opcodes[0x206] = op_set_self;
+	opcodes[0x210] = op_sfall_ver_major;
+	opcodes[0x211] = op_sfall_ver_minor;
+	opcodes[0x212] = op_sfall_ver_build;
 	opcodes[0x213] = op_hero_select_win;
 	opcodes[0x214] = op_set_hero_race;
 	opcodes[0x215] = op_set_hero_style;
@@ -407,8 +412,6 @@ void Opcodes::InitNew() {
 	opcodes[0x227] = op_refresh_pc_art;
 	opcodes[0x22c] = op_stop_sfall_sound;
 
-	opcodes[0x23a] = op_get_tile_fid;
-	opcodes[0x23b] = op_modified_ini;
 	opcodes[0x23e] = op_force_aimed_shots;
 	opcodes[0x23f] = op_disable_aimed_shots;
 	opcodes[0x240] = op_mark_movie_played;

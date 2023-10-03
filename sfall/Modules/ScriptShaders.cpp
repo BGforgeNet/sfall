@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2019  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -221,7 +221,7 @@ void ScriptShaders::Release() {
 
 void ScriptShaders::init() {
 	if (Graphics::mode >= 4) {
-		for each (const auto& shaderFile in IniReader::GetConfigList("Graphics", "GlobalShaderFile", "", 1024)) {
+		for each (const auto& shaderFile in IniReader::GetConfigList("Graphics", "GlobalShaderFile", "")) {
 			if (shaderFile.length() > 3) gShaderFiles.push_back(GlobalShader(shaderFile));
 		}
 		globalShadersActive = !gShaderFiles.empty();

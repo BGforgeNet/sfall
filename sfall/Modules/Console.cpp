@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008, 2009, 2010  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -61,7 +61,7 @@ void Console::PrintFile(const char* msg) {
 }
 
 void Console::init() {
-	auto path = IniReader::GetConfigString("Misc", "ConsoleOutputPath", "", MAX_PATH);
+	auto path = IniReader::GetConfigString("Misc", "ConsoleOutputPath", "");
 	if (!path.empty()) {
 		consoleFile.open(path);
 		if (consoleFile.is_open()) {

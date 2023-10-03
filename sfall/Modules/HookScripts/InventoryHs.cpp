@@ -31,7 +31,7 @@ void RemoveInvenObjHook_Invoke(fo::GameObject* source, fo::GameObject* item, lon
 
 static long rmObjType = -1;
 
-void SetRemoveObjectType(long rmType) {
+void __stdcall SetRemoveObjectType(long rmType) {
 	rmObjType = rmType;
 }
 
@@ -213,7 +213,13 @@ static void __declspec(naked) InvenActionCursorObjDropHook() {
 		nextHookDropSkip = 0;
 		goto skipHook;
 	} else {
+		using namespace fo::Fields;
 		__asm {
+			cmp  dword ptr [esp], 0x47379A + 5;  // caps call address
+			jnz  notCaps;
+			mov  [edx + charges], ebx;           // edx - caps, ebx - amount-1
+			add  dword ptr [edx + charges], 1;
+notCaps:
 			pushadc;
 			xor  ecx, ecx;                       // no itemReplace
 			push 6;                              // event: item drop ground
@@ -651,15 +657,11 @@ void Inject_MoveCostHook() {
 	HookCalls(MoveCostHook, { 0x417665, 0x44B88A });
 }
 
-void Inject_SwitchHandHook() {
+void Inject_InventoryMoveHook() {
 	HookCalls(SwitchHandHook, {
 		0x4712E3, // left slot
 		0x47136D  // right slot
 	});
-}
-
-void Inject_InventoryMoveHook() {
-	Inject_SwitchHandHook();
 	MakeJump(0x4713A9, UseArmorHack); // old 0x4713A3
 	MakeJump(0x476491, DropIntoContainerHack);
 	MakeJumps(DropIntoContainerHandSlotHack, { 0x471338, 0x4712AB });

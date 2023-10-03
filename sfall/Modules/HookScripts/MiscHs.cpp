@@ -11,7 +11,7 @@ namespace sfall
 {
 
 // The hook is executed twice when entering the barter screen and after transaction: the first time is for the player; the second time is for NPC
-static DWORD __fastcall BarterPriceHook_Script(register fo::GameObject* source, register fo::GameObject* target, DWORD callAddr) {
+static DWORD __fastcall BarterPriceHook_Script(fo::GameObject* source, fo::GameObject* target, DWORD callAddr) {
 	bool barterIsParty = (fo::var::dialog_target_is_party != 0);
 	long computeCost = fo::func::barter_compute_value(source, target);
 
@@ -99,7 +99,8 @@ void SourceUseSkillOnInit() { sourceSkillOn = fo::var::obj_dude; }
 
 static char resultSkillOn; // -1 - cancel handler, 1 - replace user
 static long bakupCombatState;
-static void __fastcall UseSkillOnHook_Script(DWORD source, DWORD target, register DWORD skillId) {
+
+static void __fastcall UseSkillOnHook_Script(DWORD source, DWORD target, DWORD skillId) {
 	BeginHook();
 	argCount = 3;
 
@@ -201,31 +202,68 @@ defaultHandler:
 	}
 }
 
+static long stealExpOverride;
+
+static void __declspec(naked) StealHook_ExpOverrideHack() {
+	__asm {
+		mov ecx, [esp + 0x150 - 0x18 + 4]; // total exp
+		cmp stealExpOverride, -1;
+		jle vanillaExp;
+		add ecx, stealExpOverride; // add overridden exp value
+		jmp end;
+vanillaExp:
+		add ecx, edi; // add vanilla exp value
+end:
+		add edi, 10; // vanilla exp increment for next success
+		mov [esp + 0x150 - 0x18 + 4], ecx; // set total exp
+		mov ecx, [esp];
+		add ecx, 14; // shift return address
+		mov [esp], ecx;
+		retn;
+	}
+}
+
 static void __declspec(naked) StealCheckHook() {
+	static const DWORD StealSkipRet = 0x474B18;
 	__asm {
 		HookBegin;
 		mov args[0], eax;  // thief
 		mov args[4], edx;  // target
 		mov args[8], ebx;  // item
 		mov args[12], ecx; // is planting
+		mov args[16], esi; // quantity
 		pushadc;
 	}
 
-	argCount = 4;
+	argCount = 5;
+	stealExpOverride = -1;
 	RunHookScript(HOOK_STEAL);
 
 	__asm {
 		popadc;
-		cmp cRet, 1;
-		jl  defaultHandler;
-		cmp rets[0], -1;
-		je  defaultHandler;
-		mov eax, rets[0];
+		cmp  cRet, 1;
+		jl   defaultHandler; // no return values, use vanilla path
+		cmp  cRet, 2;
+		jl   skipExpOverride;
+		push eax;
+		mov  eax, rets[4]; // override experience points for steal
+		mov  stealExpOverride, eax;
+		pop  eax;
+skipExpOverride:
+		cmp  rets[0], -1; // if <= -1, use vanilla path
+		jle  defaultHandler;
+		cmp  rets[0], 2; // 2 - steal failed but didn't get cought
+		jnz  normalReturn;
+		HookEnd;
+		add  esp, 4;
+		jmp  StealSkipRet;
+normalReturn:
+		mov  eax, rets[0];
 		HookEnd;
 		retn;
 defaultHandler:
 		HookEnd;
-		jmp fo::funcoffs::skill_check_stealing_;
+		jmp  fo::funcoffs::skill_check_stealing_;
 	}
 }
 
@@ -373,7 +411,7 @@ static void CarTravelHook_Script() {
 		consumption = static_cast<long>(rets[1]);
 	}
 	// consume fuel
-	fo::var::carGasAmount = max(originalGas - consumption, 0);
+	fo::var::carGasAmount = max(0, originalGas - consumption);
 
 	EndHook();
 }
@@ -388,7 +426,7 @@ static void __declspec(naked) CarTravelHack() {
 	}
 }
 
-static long __fastcall GlobalVarHook_Script(register DWORD number, register int value) {
+static long __fastcall GlobalVarHook_Script(DWORD number, int value) {
 	int old = fo::var::game_global_vars[number];
 
 	if (IsGameLoaded() && HookScripts::HookHasScript(HOOK_SETGLOBALVAR)) { // IsGameLoaded - don't execute hook until loading sfall scripts
@@ -457,9 +495,9 @@ static long __fastcall RestTimerHook_Script(DWORD hours, DWORD minutes, DWORD ga
 static void __declspec(naked) RestTimerLoopHook() {
 	__asm {
 		pushadc;
-		mov  edx, [esp + 20 + 0x44]; // minutes_
-		mov  ecx, [esp + 20 + 0x40]; // hours_
-		push [esp + 16];             // addrHook
+		mov  edx, [esp + 16 + 0x44]; // minutes_
+		mov  ecx, [esp + 16 + 0x40]; // hours_
+		push [esp + 12];             // addrHook
 		push eax;                    // gameTime
 		call RestTimerHook_Script;
 		pop  ecx;
@@ -477,9 +515,9 @@ static void __declspec(naked) RestTimerEscapeHook() {
 		cmp  eax, 0x1B; // ESC ASCII code
 		jnz  skip;
 		pushadc;
-		mov  edx, [esp + 20 + 0x44]; // minutes_
-		mov  ecx, [esp + 20 + 0x40]; // hours_
-		push [esp + 16];             // addrHook
+		mov  edx, [esp + 16 + 0x44]; // minutes_
+		mov  ecx, [esp + 16 + 0x40]; // hours_
+		push [esp + 12];             // addrHook
 		push eax;                    // gameTime
 		call RestTimerHook_Script;
 		pop  ecx;
@@ -612,7 +650,7 @@ blinkIcon:
 		jmp  fo::funcoffs::wmInterfaceRefresh_;
 break:
 		mov  eax, hkEncounterMapID;
-		cmp  ds:[FO_VAR_Move_on_Car], 0;
+		cmp  dword ptr ds:[FO_VAR_Move_on_Car], 0;
 		je   noCar;
 		mov  edx, FO_VAR_carCurrentArea;
 		call fo::funcoffs::wmMatchAreaContainingMapIdx_;
@@ -623,7 +661,7 @@ noCar:
 		mov  hkEncounterMapID, -1;
 cancelEnc:
 		inc  eax; // 0 - continue movement, 1 - interrupt
-		mov  ds:[FO_VAR_wmEncounterIconShow], 0;
+		mov  dword ptr ds:[FO_VAR_wmEncounterIconShow], 0;
 		add  esp, 4;
 		mov  ebx, 0x4C0BC7;
 		jmp  ebx;
@@ -633,21 +671,30 @@ cancelEnc:
 static long __stdcall RollCheckHook_Script(long roll, long chance, long bonus, long randomChance, long calledFrom) {
 	long hookType;
 	switch (calledFrom - 5) {
-		case 0x42388E: // compute_attack_
-		// compute_spray_
-		case 0x4234D1: hookType = 1; break; // single and burst attack hit event
-		// compute_spray_
-		case 0x42356C: hookType = 2; break; // burst attack bullet hit event
-		// skill_result_
-		case 0x4AAB29: hookType = 3; break; // common skill check event
-		// skill_use_
-		case 0x4AB3B6: hookType = 4; break; // SKILL_REPAIR
-		case 0x4AB8B5: hookType = 5; break; // SKILL_DOCTOR
-		// skill_check_stealing_            // SKILL_STEAL
-		case 0x4ABC9F: hookType = 6; break; // source stealing check event
-		case 0x4ABCE6: hookType = 7; break; // target stealing check event (fail for success stealing)
+	case 0x42388E:    // compute_attack_
+	case 0x4234D1:    // compute_spray_
+		hookType = 1; // single and burst attack hit event
+		break;
+	case 0x42356C:    // compute_spray_
+		hookType = 2; // burst attack bullet hit event
+		break;
+	case 0x4AAB29:    // skill_result_
+		hookType = 3; // common skill check event
+		 break;
+	case 0x4AB3B6:    // skill_use_
+		hookType = 4; // SKILL_REPAIR
+		break;
+	case 0x4AB8B5:    // skill_use_
+		hookType = 5; // SKILL_DOCTOR
+		break;
+	case 0x4ABC9F:    // skill_check_stealing_
+		hookType = 6; // SKILL_STEAL - source stealing check event
+		break;
+	case 0x4ABCE6:    // skill_check_stealing_
+		hookType = 7; // SKILL_STEAL - target stealing check event (fail for success stealing)
+		break;
 	default:
-		return roll; // unsupported hook
+		return roll;  // unsupported hook
 	}
 
 	BeginHook();
@@ -697,6 +744,7 @@ void Inject_UseSkillHook() {
 
 void Inject_StealCheckHook() {
 	HookCalls(StealCheckHook, { 0x4749A2, 0x474A69 });
+	MakeCalls(StealHook_ExpOverrideHack, { 0x4742C5, 0x4743E1 });
 }
 
 void Inject_SneakCheckHook() {
@@ -717,7 +765,7 @@ void Inject_WithinPerceptionHook() {
 
 void Inject_CarTravelHook() {
 	MakeJump(0x4BFEF1, CarTravelHack);
-	BlockCall(0x4BFF6E); // vanilla wnCarUseGas(100) call
+	BlockCall(0x4BFF6E); // vanilla wmCarUseGas(100) call
 }
 
 void Inject_SetGlobalVarHook() {
@@ -739,8 +787,10 @@ void Inject_UseSkillOnHook() {
 	MakeCalls(skill_use_hack, {0x4AB05D, 0x4AB558, 0x4ABA60}); // fix checking obj_dude's target
 
 	// replace _obj_dude with source skill user (skill_use_ function)
-	SafeWriteBatch<DWORD>((DWORD)&sourceSkillOn, {0x4AAF47, 0x4AB051, 0x4AB3FB, 0x4AB550, 0x4AB8FA, 0x4ABA54});
-	SafeWriteBatch<DWORD>((DWORD)&sourceSkillOn, {0x4AB0EF, 0x4AB5C0, 0x4ABAF2}); // fix for time
+	SafeWriteBatch<DWORD>((DWORD)&sourceSkillOn, {
+		0x4AAF47, 0x4AB051, 0x4AB3FB, 0x4AB550, 0x4AB8FA, 0x4ABA54,
+		0x4AB0EF, 0x4AB5C0, 0x4ABAF2 // fix for time increment
+	});
 }
 
 void Inject_EncounterHook() {

@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2021  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@ class Unarmed : public Module {
 public:
 	const char* name() { return "Unarmed"; }
 	void init();
-	//void exit() override;
 
 	static long GetHitAPCost(fo::AttackType hit);
 	static long GetDamage(fo::AttackType hit, long &minOut, long &maxOut);

@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2021  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -96,7 +96,7 @@ void mf_critter_inven_obj2(OpcodeContext& ctx) {
 		ctx.setReturn(critter->invenSize);
 		break;
 	default:
-		ctx.printOpcodeError("%s() - invalid type.", ctx.getMetaruleName());
+		ctx.printOpcodeError("%s() - invalid type number.", ctx.getMetaruleName());
 	}
 }
 

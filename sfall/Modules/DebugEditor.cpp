@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008, 2009, 2010  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "..\main.h"
+#include "..\ConsoleWindow.h"
 #include "..\FalloutEngine\Fallout2.h"
 #include "..\InputFuncs.h"
 //#include "Graphics.h"
@@ -320,19 +321,8 @@ artNotExist:
 		push edx;
 		push artDbgMsg;
 		call fo::funcoffs::debug_printf_;
-		cmp  isDebug, 0;
-		jne  display;
 		add  esp, 8;
 		retn;
-display:
-		push edx; // filename
-		push artDbgMsg;
-		lea  eax, [esp + 0x124 - 0x124 + 20]; // buf
-		push eax;
-		call fo::funcoffs::sprintf_;
-		add  esp, 20;
-		lea  eax, [esp + 4];
-		jmp  fo::funcoffs::display_print_;
 	}
 }
 
@@ -405,6 +395,45 @@ static void __declspec(naked) combat_load_hack() {
 	}
 }
 
+static void __fastcall DuplicateLogToConsole(const char* a, unsigned long displayMsg) {
+	auto& console = ConsoleWindow::instance();
+	auto source = displayMsg ? ConsoleWindow::Source::DISPLAY_MSG : ConsoleWindow::Source::DEBUG_MSG;
+	console.write("\n", source);
+	console.write(a, source);
+}
+
+static void __declspec(naked) op_display_debug_msg_hack() {
+	__asm {
+		mov  eax, 0x505224; // "\n"
+		call ds:[FO_VAR_debug_func];
+		mov  eax, esi; // actual message
+		call ds:[FO_VAR_debug_func];
+		pushadc;
+		mov  ecx, esi;
+		mov  edx, [esp + 12];
+		call DuplicateLogToConsole; // duplicate messages to console window
+		popadc;
+		add  esp, 4; // eat displayMsg flag
+		pop  eax;
+		add  eax, 17; // skip to the end of functions
+		jmp  eax;
+	}
+}
+
+static void __declspec(naked) op_display_msg_hack() {
+	__asm {
+		push 1; // displayMsg = true
+		jmp  op_display_debug_msg_hack;
+	}
+}
+
+static void __declspec(naked) op_debug_msg_hack() {
+	__asm {
+		push 0; // displayMsg = false
+		jmp  op_display_debug_msg_hack;
+	}
+}
+
 // Shifts the string one character to the right and inserts a newline control character at the beginning
 static void MoveDebugString(char* messageAddr) {
 	int i = 0;
@@ -426,7 +455,7 @@ static const DWORD addrNewLineChar[] = {
 static void DebugModePatch() {
 	int dbgMode = IniReader::GetIntDefaultConfig("Debugging", "DebugMode", 0);
 	if (dbgMode > 0) {
-		dlog("Applying debugmode patch.", DL_INIT);
+		dlogr("Applying debugmode patch.", DL_INIT);
 		// If the player is using an exe with the debug patch already applied, just skip this block without erroring
 		if (*((DWORD*)0x444A64) != 0x082327E8) {
 			SafeWrite32(0x444A64, 0x082327E8); // call debug_register_env_
@@ -440,7 +469,7 @@ static void DebugModePatch() {
 			if (dbgMode & 1) {
 				SafeWrite16(0x4C6E75, 0x66EB); // jmps 0x4C6EDD
 				SafeWrite8(0x4C6EF2, CodeType::JumpShort);
-				SafeWrite8(0x4C7034, 0x0);
+				SafeWrite16(0x4C7033, 0x9090);
 				MakeCall(0x4DC319, win_debug_hook, 2);
 			}
 		} else {
@@ -451,20 +480,14 @@ static void DebugModePatch() {
 			MakeJump(0x453FD2, dbg_error_hack);
 		}
 
-		// prints a debug message about a missing critter art file to both debug.log and the message window in sfall debugging mode
-		HookCall(0x419B65, art_data_size_hook);
-		// checks the animation code, if ANIM_walk then skip printing the debug message
-		HookCall(0x419AA0, art_data_size_hook_check);
-		SafeWrite8(0x419B61, CodeType::JumpNZ); // jz > jnz
-
 		// Fix to prevent crashes when there is a '%' character in the printed message
 		if (dbgMode > 1) {
 			MakeCall(0x4C703F, debug_log_hack);
 			BlockCall(0x4C7044); // just nop code
 		}
-		// replace calling debug_printf_ with _debug_func
-		__int64 data = 0x51DF0415FFF08990; // mov eax, esi; call ds:_debug_func
-		SafeWriteBytes(0x455419, (BYTE*)&data, 8); // op_display_msg_
+		// replace calling debug_printf_ with _debug_func, to avoid buffer overflow with messages longer than 260 bytes
+		MakeCall(0x45540F, op_display_msg_hack);
+		MakeCall(0x45CB4E, op_debug_msg_hack);
 
 		// set the position of the debug window
 		SafeWrite8(0x4DC34D, 15);
@@ -481,15 +504,13 @@ static void DebugModePatch() {
 		if (dbgMode != 1) {
 			MoveDebugString((char*)0x500A9B); // "computing attack..."
 		}
-		dlogr(" Done", DL_INIT);
 	}
 }
 
 static void DontDeleteProtosPatch() {
 	if (IniReader::GetIntDefaultConfig("Debugging", "DontDeleteProtos", 0)) {
-		dlog("Applying permanent protos patch.", DL_INIT);
+		dlogr("Applying permanent protos patch.", DL_INIT);
 		SafeWrite8(0x48007E, CodeType::JumpShort);
-		dlogr(" Done", DL_INIT);
 	}
 }
 
@@ -517,6 +538,12 @@ void CheckTimerResolution() {
 void DebugEditor::init() {
 	DebugModePatch();
 
+	// Prints a debug message about a missing critter art file to debug.log
+	HookCall(0x419B65, art_data_size_hook);
+	// Checks the animation code, if ANIM_walk then skip printing the debug message
+	HookCall(0x419AA0, art_data_size_hook_check);
+	SafeWrite8(0x419B61, CodeType::JumpNZ); // jz > jnz
+
 	// Notifies and prints a debug message about a corrupted proto file to debug.log
 	MakeCall(0x4A1D73, proto_load_pid_hack, 6);
 
@@ -540,7 +567,7 @@ void DebugEditor::init() {
 	if (mapGridToggleKey) {
 		OnKeyPressed() += [](DWORD scanCode, bool pressed) {
 			if (scanCode == mapGridToggleKey && pressed && IsGameLoaded()) {
-				__asm call fo::funcoffs::grid_toggle_;
+				fo::func::grid_toggle();
 				fo::func::tile_refresh_display();
 			}
 		};

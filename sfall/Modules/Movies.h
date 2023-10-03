@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008, 2009  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -27,7 +27,6 @@ class Movies : public Module {
 public:
 	const char* name() { return "Movies"; }
 	void init();
-	//void exit() override;
 
 	static bool DirectShowMovies();
 };

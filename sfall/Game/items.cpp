@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2021  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  */
 
@@ -142,7 +142,7 @@ static long item_w_mp_cost_sub(fo::GameObject* source, fo::GameObject* item, lon
 	if ((type == fo::AttackSubType::MELEE || type == fo::AttackSubType::UNARMED) && Stats::perk_level(source, fo::Perk::PERK_bonus_hth_attacks)) {
 		cost--;
 	}
-	if (type == fo::AttackSubType::GUNS && Stats::perk_level(source, fo::Perk::PERK_bonus_rate_of_fire)) {
+	if (type == fo::AttackSubType::RANGED && Stats::perk_level(source, fo::Perk::PERK_bonus_rate_of_fire)) {
 		cost--;
 	}
 	if (cost < 1) cost = 1;

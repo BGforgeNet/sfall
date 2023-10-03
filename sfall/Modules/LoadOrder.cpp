@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2017  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,9 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#include <algorithm>
+#include <fstream>
 
 #include "..\main.h"
 #include "..\FalloutEngine\Fallout2.h"
@@ -256,20 +259,62 @@ static void __fastcall game_init_databases_hook1() {
 	}
 	fo::var::master_db_handle = node; // set pointer to master_patches node
 
+	InitSystemPatches();
 	InitExtraPatches();
 }
 */
 static bool NormalizePath(std::string &path) {
-	if (path.find(':') != std::string::npos) return false;
+	const char* whiteSpaces = " \t";
+	// Remove comments.
+	size_t pos = path.find_first_of(";#");
+	if (pos != std::string::npos) {
+		path.erase(pos);
+	}
+	// Trim whitespaces.
+	path.erase(0, path.find_first_not_of(whiteSpaces)); // trim left
+	path.erase(path.find_last_not_of(whiteSpaces) + 1); // trim right
+	// Normalize directory separators.
+	std::replace(path.begin(), path.end(), '/', '\\');
+	// Remove leading slashes.
+	path.erase(0, path.find_first_not_of('\\'));
 
-	int pos = 0;
-	do { // replace all '/' char to '\'
-		pos = path.find('/', pos);
-		if (pos != std::string::npos) path[pos] = '\\';
-	} while (pos != std::string::npos);
+	// Disallow paths trying to "escape" game folder:
+	if (path.find(':') != std::string::npos ||
+	    path.find(".\\") != std::string::npos ||
+	    path.find("..\\") != std::string::npos) {
+		return false;
+	}
+	return !path.empty();
+}
 
-	if (path.find(".\\") != std::string::npos || path.find("..\\") != std::string::npos) return false;
-	while (path.front() == '\\') path.erase(0, 1); // remove firsts '\'
+static bool FileExists(const std::string& path) {
+	DWORD dwAttrib = GetFileAttributesA(path.c_str());
+	return (dwAttrib != INVALID_FILE_ATTRIBUTES && !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
+}
+
+static bool FolderExists(const std::string& path) {
+	DWORD dwAttrib = GetFileAttributesA(path.c_str());
+	return (dwAttrib != INVALID_FILE_ATTRIBUTES && (dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
+}
+
+static bool FileOrFolderExists(const std::string& path) {
+	return GetFileAttributesA(path.c_str()) != INVALID_FILE_ATTRIBUTES;
+}
+
+static bool ValidateExtraPatch(std::string& path, const char* basePath, const char* entryName) {
+	if (!NormalizePath(path)) {
+		if (!path.empty()) {
+			dlog_f("Error: %s invalid entry: \"%s\"\n", DL_INIT, entryName, path.c_str());
+		}
+		return false;
+	}
+	path.insert(0, basePath);
+	if (!FileOrFolderExists(path)) {
+		const char* entry = path.c_str();
+		if (path.find(".\\") == 0) entry += 2;
+		dlog_f("Error: %s entry not found: %s\n", DL_INIT, entryName, entry);
+		return false;
+	}
 	return true;
 }
 
@@ -278,45 +323,82 @@ static void GetExtraPatches() {
 	char patchFile[12] = "PatchFile";
 	for (int i = 0; i < 100; i++) {
 		_itoa(i, &patchFile[9], 10);
-		auto patch = IniReader::GetConfigString("ExtraPatches", patchFile, "", MAX_PATH);
-		if (patch.empty() || !NormalizePath(patch) || GetFileAttributes(patch.c_str()) == INVALID_FILE_ATTRIBUTES) continue;
+		auto patch = IniReader::GetConfigString("ExtraPatches", patchFile, "");
+		if (!ValidateExtraPatch(patch, "", patchFile)) continue;
 		patchFiles.push_back(patch);
 	}
-	std::string searchPath = "mods\\"; //IniReader::GetConfigString("ExtraPatches", "AutoSearchPath", "mods\\", MAX_PATH);
-	//if (!searchPath.empty() && NormalizePath(searchPath)) {
-		//if (searchPath.back() != '\\') searchPath += "\\";
+	const std::string modsPath = ".\\mods\\";
+	const std::string loadOrderFileName = "mods_order.txt";
+	const std::string loadOrderFilePath = modsPath + loadOrderFileName;
 
-		std::string pathMask(".\\mods\\*.dat");
-		dlogr("Loading custom patches:", DL_MAIN);
-		WIN32_FIND_DATA findData;
-		HANDLE hFind = FindFirstFile(pathMask.c_str(), &findData);
-		if (hFind != INVALID_HANDLE_VALUE) {
-			do {
-				std::string name(searchPath + findData.cFileName);
-				if ((name.length() - name.find_last_of('.')) > 4) continue;
-				dlog_f("> %s\n", DL_MAIN, name.c_str());
-				patchFiles.push_back(name);
-			} while (FindNextFile(hFind, &findData));
-			FindClose(hFind);
+	// If the mods folder does not exist, create it.
+	if (!FolderExists(modsPath)) {
+		dlog_f("Creating Mods folder: %s\n", DL_INIT, modsPath.c_str() + 2);
+		CreateDirectoryA(modsPath.c_str(), 0);
+	}
+	// If load order file does not exist, initialize it automatically with mods already in the mods folder.
+	if (!FileExists(loadOrderFilePath)) {
+		dlog_f("Generating Mods Order file based on the contents of Mods folder: %s\n", DL_INIT, loadOrderFilePath.c_str() + 2);
+		std::ofstream loadOrderFile(loadOrderFilePath, std::ios::out | std::ios::trunc);
+		if (loadOrderFile.is_open()) {
+			// Search all .dat files and folders in the mods folder.
+			std::vector<std::string> autoLoadedPatchFiles;
+			std::string pathMask(modsPath + "*.dat");
+			WIN32_FIND_DATA findData;
+			HANDLE hFind = FindFirstFile(pathMask.c_str(), &findData);
+			if (hFind != INVALID_HANDLE_VALUE) {
+				do {
+					std::string name(findData.cFileName);
+					if ((name.length() - name.find_last_of('.')) > 4) continue;
+
+					autoLoadedPatchFiles.push_back(name);
+				} while (FindNextFile(hFind, &findData));
+				FindClose(hFind);
+			}
+			// Sort the search result.
+			std::sort(autoLoadedPatchFiles.begin(), autoLoadedPatchFiles.end());
+			// Write found files into load order file.
+			for (const auto& filePath : autoLoadedPatchFiles) {
+				loadOrderFile << filePath << '\n';
+			}
+		} else {
+			dlog_f("Error creating load order file %s.\n", DL_INIT, loadOrderFilePath.c_str() + 2);
 		}
-	//}
+	}
+
+	// Add mods from load order file.
+	std::ifstream loadOrderFile(loadOrderFilePath, std::ios::in);
+	if (loadOrderFile.is_open()) {
+		std::string patch;
+		while (std::getline(loadOrderFile, patch)) {
+			if (!ValidateExtraPatch(patch, modsPath.c_str(), loadOrderFileName.c_str())) continue;
+			patchFiles.push_back(patch);
+		}
+	} else {
+		dlog_f("Error opening %s for read: 0x%x\n", DL_INIT, loadOrderFilePath.c_str() + 2, GetLastError());
+	}
+
 	// Remove first duplicates
 	size_t size = patchFiles.size();
-	for (size_t i = 1; i < size; ++i) {
-		for(size_t j = size - 1; j > i; --j) {
+	for (size_t i = 0; i < size; ++i) {
+		for (size_t j = size - 1; j > i; --j) {
 			if (patchFiles[j] == patchFiles[i]) {
 				patchFiles[i].clear();
 			}
 		}
 	}
+
+	dlogr("Loading extra patches:", DL_INIT);
+	for (const auto& patch : patchFiles) {
+		dlog_f("> %s\n", DL_INIT, patch.c_str() + 2);
+	}
 }
 
 static void MultiPatchesPatch() {
 	//if (IniReader::GetConfigInt("Misc", "MultiPatches", 0)) {
-		dlog("Applying load multiple patches patch.", DL_INIT);
+		dlogr("Applying load multiple patches patch.", DL_INIT);
 		SafeWrite8(0x444354, CodeType::Nop); // Change step from 2 to 1
 		SafeWrite8(0x44435C, 0xC4);          // Disable check
-		dlogr(" Done", DL_INIT);
 	//}
 }
 
@@ -556,19 +638,18 @@ void LoadOrder::init() {
 	MultiPatchesPatch();
 
 	//if (IniReader::GetConfigInt("Misc", "DataLoadOrderPatch", 1)) {
-		dlog("Applying data load order patch.", DL_INIT);
+		dlogr("Applying data load order patch.", DL_INIT);
 		MakeCall(0x444259, game_init_databases_hack1);
 		MakeCall(0x4442F1, game_init_databases_hack2);
 		HookCall(0x44436D, game_init_databases_hook);
 		SafeWrite8(0x4DFAEC, 0x1D); // error correction (ecx > ebx)
-		dlogr(" Done", DL_INIT);
 	//} else /*if (!patchFiles.empty())*/ {
 	//	HookCall(0x44436D, game_init_databases_hook1);
 	//}
 
 	femaleMsgs = IniReader::GetConfigInt("Misc", "FemaleDialogMsgs", 0);
 	if (femaleMsgs) {
-		dlog("Applying alternative female dialog files patch.", DL_INIT);
+		dlogr("Applying alternative female dialog files patch.", DL_INIT);
 		MakeJump(0x4A6BCD, scr_get_dialog_msg_file_hack1);
 		MakeJump(0x4A6BF5, scr_get_dialog_msg_file_hack2);
 		LoadGameHook::OnAfterGameStarted() += CheckPlayerGender;
@@ -576,7 +657,6 @@ void LoadOrder::init() {
 			MakeCall(0x480A95, gnw_main_hack); // before new game start from main menu. TODO: need moved to address 0x480A9A (it busy in movies.cpp)
 			LoadGameHook::OnGameExit() += PlayerGenderCutsRestore;
 		}
-		dlogr(" Done", DL_INIT);
 	}
 
 	// Redefined behavior for replacing art aliases for critters
@@ -587,14 +667,13 @@ void LoadOrder::init() {
 		MakeCall(0x419560, art_get_name_hack);
 	}
 
-	dlog("Applying party member protos save/load patch.", DL_INIT);
+	dlogr("Applying party member protos save/load patch.", DL_INIT);
 	savPrototypes.reserve(25);
 	HookCall(0x4A1CF2, proto_load_pid_hook);
 	HookCall(0x4A1BEE, proto_save_pid_hook);
 	MakeCall(0x47F5A5, GameMap2Slot_hack); // save game
 	MakeCall(0x47FB80, SlotMap2Game_hack); // load game
 	MakeCall(0x47FBBF, SlotMap2Game_hack_attr, 1);
-	dlogr(" Done", DL_INIT);
 
 	// Load fonts based on the game language
 	HookCalls(load_font_hook, {

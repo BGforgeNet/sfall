@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2016  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -75,6 +75,7 @@
 #include "Modules\Unarmed.h"
 #include "Modules\Worldmap.h"
 
+#include "ConsoleWindow.h"
 #include "CRC.h"
 #include "InputFuncs.h"
 #include "Logging.h"
@@ -86,7 +87,10 @@
 
 #include "HRP\Init.h"
 
+#include <chrono>
+
 ddrawDll ddraw;
+static void LoadOriginalDll(DWORD fdwReason);
 
 namespace sfall
 {
@@ -100,7 +104,7 @@ char falloutConfigName[65];
 static void InitModules() {
 	dlogr("In InitModules", DL_INIT);
 
-	auto& manager = ModuleManager::getInstance();
+	auto& manager = ModuleManager::instance();
 
 	// initialize all modules
 	manager.add<BugFixes>();    // fixes should be applied at the beginning
@@ -202,14 +206,21 @@ static int CheckEXE() {
 
 static HMODULE SfallInit() {
 	char filepath[MAX_PATH];
+
+	LoadOriginalDll(DLL_PROCESS_ATTACH);
+
 	GetModuleFileName(0, filepath, MAX_PATH);
+
+	auto initStart = std::chrono::high_resolution_clock::now();
 
 	SetCursor(LoadCursorA(0, IDC_ARROW));
 	ShowCursor(1);
 
 	if (!CRC(filepath)) return 0;
 
+	IniReader::instance().init();
 	LoggingInit();
+	ConsoleWindow::instance().init();
 
 	// enabling debugging features
 	isDebug = (IniReader::GetIntDefaultConfig("Debugging", "Enable", 0) != 0);
@@ -257,7 +268,7 @@ static HMODULE SfallInit() {
 		HANDLE h = CreateFileA(overrideIni.c_str(), GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0);
 		if (h != INVALID_HANDLE_VALUE) {
 			CloseHandle(h);
-			IniReader::SetConfigFile(overrideIni.c_str());
+			IniReader::instance().setConfigFile(overrideIni.c_str());
 		} else {
 			MessageBoxA(0, "You gave a command line argument to Fallout, but the configuration ini file was not found.\n"
 			               "Using default ddraw.ini instead.", "Warning", MB_TASKMODAL | MB_ICONWARNING);
@@ -265,16 +276,13 @@ static HMODULE SfallInit() {
 		}
 	} else {
 defaultIni:
-		IniReader::SetDefaultConfigFile();
+		IniReader::instance().setDefaultConfigFile();
 	}
-	std::srand(GetTickCount());
-
-	IniReader::init();
+	//std::srand(GetTickCount());
 
 	if (IniReader::GetConfigString("Misc", "ConfigFile", "", falloutConfigName, 65)) {
-		dlog("Applying config file patch.", DL_INIT);
+		dlogr("Applying config file patch.", DL_INIT);
 		SafeWriteBatch<DWORD>((DWORD)&falloutConfigName, {0x444BA5, 0x444BCA});
-		dlogr(" Done", DL_INIT);
 	} else {
 		// if the ConfigFile is not assigned a value
 		std::strcpy(falloutConfigName, (const char*)FO_VAR_fallout_config);
@@ -290,12 +298,17 @@ defaultIni:
 	if (HRP::Setting::ExternalEnabled()) ShowCursor(0);
 
 	fo::var::setInt(FO_VAR_GNW95_hDDrawLib) = (long)ddraw.sfall;
+
+	auto initEnd = std::chrono::high_resolution_clock::now();
+	auto duration = std::chrono::duration_cast<std::chrono::microseconds>(initEnd - initStart);
+	dlog_f("Sfall initialized in: %d us\n", DL_INIT, duration.count());
+
 	return ddraw.sfall;
 }
 
 }
 
-static bool LoadOriginalDll(DWORD fdwReason) {
+static void LoadOriginalDll(DWORD fdwReason) {
 	switch (fdwReason) {
 		case DLL_PROCESS_ATTACH:
 			char path[MAX_PATH];
@@ -326,20 +339,21 @@ static bool LoadOriginalDll(DWORD fdwReason) {
 				ddraw.ReleaseDDThreadLock          = GetProcAddress(ddraw.dll, "ReleaseDDThreadLock");
 				ddraw.SetAppCompatData             = GetProcAddress(ddraw.dll, "SetAppCompatData");
 			}
-			return true;
+			break;
 		case DLL_PROCESS_DETACH:
 			if (ddraw.dll) FreeLibrary(ddraw.dll);
 			break;
 	}
-	return false;
 }
 
 bool __stdcall DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
-	if (LoadOriginalDll(fdwReason)) {
+	if (fdwReason == DLL_PROCESS_ATTACH) {
 		if (sfall::CheckEXE()) {
 			ddraw.sfall = hinstDLL;
 			sfall::MakeCall(0x4DE8DE, sfall::SfallInit); // LoadDirectX_
 		}
+	} else {
+		LoadOriginalDll(fdwReason);
 	}
 	return true;
 }

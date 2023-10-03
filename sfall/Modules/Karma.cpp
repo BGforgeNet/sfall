@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2017  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ bool displayKarmaChanges;
 
 static DWORD __stdcall DrawCard() {
 	int reputation = fo::var::game_global_vars[fo::GVAR_PLAYER_REPUTATION];
-	for (auto& info : karmaFrms) {
+	for (const auto& info : karmaFrms) {
 		if (reputation < info.points) {
 			return info.frm;
 		}
@@ -80,20 +80,19 @@ void Karma::DisplayKarma(int value) {
 static void ApplyDisplayKarmaChangesPatch() {
 	displayKarmaChanges = IniReader::GetConfigInt("Misc", "DisplayKarmaChanges", 0) != 0;
 	if (displayKarmaChanges) {
-		dlog("Applying display karma changes patch.", DL_INIT);
+		dlogr("Applying display karma changes patch.", DL_INIT);
 		karmaGainMsg = Translate::Get("sfall", "KarmaGain", "You gained %d karma.");
 		karmaLossMsg = Translate::Get("sfall", "KarmaLoss", "You lost %d karma.");
 		HookScripts::InjectingHook(HOOK_SETGLOBALVAR);
-		dlogr(" Done", DL_INIT);
 	}
 }
 
 static void ApplyKarmaFRMsPatch() {
-	auto karmaFrmList = IniReader::GetConfigList("Misc", "KarmaFRMs", "", 512);
+	auto karmaFrmList = IniReader::GetConfigList("Misc", "KarmaFRMs", "");
 	size_t countFrm = karmaFrmList.size();
 	if (countFrm) {
-		dlog("Applying karma FRM patch.", DL_INIT);
-		auto karmaPointsList = IniReader::GetConfigList("Misc", "KarmaPoints", "", 512);
+		dlogr("Applying karma FRM patch.", DL_INIT);
+		auto karmaPointsList = IniReader::GetConfigList("Misc", "KarmaPoints", "");
 
 		karmaFrms.resize(countFrm);
 		size_t countPoints = karmaPointsList.size();
@@ -104,8 +103,6 @@ static void ApplyKarmaFRMsPatch() {
 			                    : INT_MAX;
 		}
 		HookCall(0x4367A9, DrawInfoWin_hook);
-
-		dlogr(" Done", DL_INIT);
 	}
 }
 

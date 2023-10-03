@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2010  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -276,8 +276,8 @@ void BarBoxes::init() {
 		boxes[i].msg = 100 + i;
 	}
 
-	auto boxBarColors = IniReader::GetConfigString("Misc", "BoxBarColours", "", actualBoxCount + 1);
-	for (size_t i = 0; i < boxBarColors.size(); i++) {
+	auto boxBarColors = IniReader::GetConfigString("Misc", "BoxBarColours", "");
+	for (size_t i = 0; i < boxBarColors.size() && i < (size_t)actualBoxCount; i++) {
 		if (boxBarColors[i] == '1') {
 			boxes[i + 5].colour = 1; // red color
 			boxText[i].cfgColor = 1;

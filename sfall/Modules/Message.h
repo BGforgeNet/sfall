@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2016  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -57,7 +57,6 @@ class Message : public Module {
 public:
 	const char* name() { return "Message"; }
 	void init();
-	//void exit() override;
 
 	static const char* GameLanguage();
 

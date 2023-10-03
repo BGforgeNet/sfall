@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2020  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
  *    You should have received a copy of the GNU General Public License
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#include <intrin.h>
 
 #include "..\..\main.h"
 #include "..\..\FalloutEngine\Fallout2.h"
@@ -180,11 +182,10 @@ void WindowRender::EnableRecalculateFadeSteps() {
 void WindowRender::init() {
 	int multi = IniReader::GetConfigInt("Graphics", "FadeMultiplier", 100);
 	if (multi != 100 || reCalculate) {
-		dlog("Applying fade patch.", DL_INIT);
+		dlogr("Applying fade patch.", DL_INIT);
 		HookCall(0x493B16, palette_fade_to_hook);
 		if (multi <= 0) multi = 1;
 		fadeMulti = multi / 100.0f;
-		dlogr(" Done", DL_INIT);
 	}
 
 	// Enable support for transparent interface windows

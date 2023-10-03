@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2021  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -424,10 +424,10 @@ void Unarmed::init() {
 
 	unarmed = Hits();
 
-	auto unarmedFile = IniReader::GetConfigString("Misc", "UnarmedFile", "", MAX_PATH);
+	auto unarmedFile = IniReader::GetConfigString("Misc", "UnarmedFile", "");
 	if (!unarmedFile.empty()) {
 		const char* file = unarmedFile.insert(0, ".\\").c_str();
-		if (GetFileAttributes(file) != INVALID_FILE_ATTRIBUTES) { // check if file exists
+		if (GetFileAttributesA(file) != INVALID_FILE_ATTRIBUTES) { // check if file exists
 			char stat[6] = "Stat0";
 			char sHit[4] = "0";
 			for (size_t i = 0; i < Hits::count; _itoa(++i, sHit, 10)) {
@@ -510,7 +510,8 @@ void Unarmed::init() {
 		"PiercingKick"
 	};
 	for (size_t i = 0; i < 14; i++) {
-		hitNames[i] = Translate::Get("Unarmed", setting[i], "", 17);
+		hitNames[i] = Translate::Get("Unarmed", setting[i], "");
+		if (hitNames[i].size() > 16) hitNames[i].resize(16); // trim to fit
 	}
 }
 

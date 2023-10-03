@@ -7,7 +7,7 @@ In addition to the bit of code it overrides, the script will be run once when fi
 
 ### Hooks compatibility
 
-To aid in mods compatibility, avoid using `hs_xxx.int` scripts. Instead it is recommended to use a normal global script combined with `register_hook_proc` or `register_hook`.
+To aid in mods compatibility, avoid using the predefined `hs_<name>.int` scripts. Instead it is recommended to use a normal global script combined with `register_hook_proc` or `register_hook`.
 
 Example setup for a hook-script based mod:
 ```js
@@ -42,29 +42,37 @@ Returns all hook arguments as a new temp array.
 Used to return the new values from the script. Each time it's called it sets the next value, or if you've already set all return values it does nothing.
 
 #### `void set_sfall_arg(int argNum, int value)`
-Changes argument value. The argument number (argNum) is 0-indexed. This is useful if you have several hook scripts attached to one hook point (see below).
+Changes argument value. The argument number (`argNum`) is 0-indexed. This is useful if you have several hook scripts attached to one hook point (see below).
 
 #### `void register_hook(int hookID)`
-Used from a normal global script if you want to run it at the same point a full hook script would normally run. In case of this function, `start` proc will be executed in the current global script. You can use all above functions like normal.
+Used from a normal global script if you want to run it at the same point a full hook script would normally run. In case of this function, `start` procedure will be executed in the current global script. You can use all above functions like normal.
 
 #### `void register_hook_proc(int hookID, procedure proc)`
-The same as `register_hook`, except that you specifically define which procedure in the current script should be called as a hook (instead of "start" by default). Pass procedure the same as how you use dialog option functions.
-This IS the recommended way to use hook scripts, as it gives both modularity (each mod logic in a separate global script, no conflicts if you don't use `hs_*.int` scripts) and flexibility (you can place all related hook scripts for specific mod in a single script!).
+The same as `register_hook`, except that you specifically define which procedure in the current script should be called as a hook (instead of "start" by default). Pass the procedure the same as how you use dialog option functions.
+This IS the recommended way to use hook scripts, as it gives both modularity (each mod logic in a separate global script with no conflicts) and flexibility. You can place all related hook scripts for a specific mod in one global script!
 
 Use zero (0) as the second argument to unregister the hook from the current global script.
 
 #### `void register_hook_proc_spec(int hookID, procedure proc)`
-Works very similar to `register_hook_proc`, except that it registers the current script at the end of the hook script execution chain (i.e. the script will be executed after all previously registered scripts for the same hook, including the `hs_*.int` script). All scripts hooked to a single hook point with this function are executed in exact order of how they were registered, as opposed to the description below, which refers to using `register_hook` and `register_hook_proc` functions.
+Works the same as `register_hook_proc`, except that it registers the current script at the end of the hook script execution chain (i.e. the script will be executed after all previously registered scripts for the same hook, including the `hs_<name>.int` script).
+In addition, all scripts hooked to a single hook point with this function are executed in the exact order of how they were registered. In the case of using `register_hook` and `register_hook_proc` functions, scripts are executed in reverse order of how they were registered.
 
-__NOTE:__ You can hook several scripts to a single hook point, for example, if it's different mods from different authors or just some different aspects of one larger mod. In this case scripts are executed in reverse order of how they were registered. When one of the scripts in a chain returns value with `set_sfall_return`, the next script may override this value if calls `set_sfall_return` again. Sometimes you need to multiply certain value in a chain of hook scripts.
+**The execution chain of script procedures for a hook is as follows:**
+1. Procedures registered with `register_hook` and `register_hook_proc` functions (executed in reverse order of registration).
+2. The `hs_<name>.int` script.
+3. Procedures registered with the `register_hook_proc_spec` function (executed in the exact order of registration).
 
-Example: let's say we have a Mod A which reduces all "to hit" chances by 50%. The code might look like this:
+You can hook several scripts to a single hook point, for example, if it's different mods from different authors or just some different aspects of one larger mod.
+When one of the scripts in a chain returns value with `set_sfall_return`, the next script may override this value if calls `set_sfall_return` again.
+
+__Example:__ Sometimes you need to multiply certain value in a chain of hook scripts.
+Let's say we have a **Mod A** which reduces all "to hit" chances by 50%. The code might look like this:
 ```js
     original_chance = get_sfall_arg;
     set_sfall_return(original_chance / 2);
 ```
 
-Mod B also want to affect hit chances globally, by increasing them by 50%. Now in order for both mods to work well together, we need to add this line to **Mod A** hook script:
+**Mod B** also want to affect hit chances globally, by increasing them by 50%. Now in order for both mods to work well together, we need to add this line to **Mod A** hook script:
 ```js
     set_sfall_arg(0, (original_chance / 2));
 ```
@@ -100,7 +108,7 @@ int     arg5 - Attack Type (see ATKTYPE_* constants)
 int     arg6 - Ranged flag. 1 if the hit chance calculation takes into account the distance to the target. This does not mean the attack is a ranged attack
 int     arg7 - The raw hit chance before applying the cap
 
-int     ret0 - the new hit chance
+int     ret0 - The new hit chance. The value is limited to the range of -99 to 999
 ```
 
 -------------------------------------------
@@ -125,7 +133,7 @@ Critter ret2 - Override the target of the attack
 
 #### `HOOK_CALCAPCOST (hs_calcapcost.int)`
 
-Runs whenever Fallout is calculating the AP cost of using the weapon (or unarmed attack). Doesn't run for using other item types or moving.\
+Runs whenever Fallout calculates the AP cost of using an active item in hand (or unarmed attack). Doesn't run for moving.\
 Note that the first time a game is loaded, this script doesn't run before the initial interface is drawn, so if the script effects the AP cost of whatever is in the player's hands at the time the wrong AP cost will be shown. It will be fixed the next time the interface is redrawn.\
 You can get the weapon object by checking item slot based on attack type (`ATKTYPE_LWEP1`, `ATKTYPE_LWEP2`, etc) and then calling `critter_inven_obj`.
 
@@ -314,7 +322,7 @@ Critter arg0 - the critter doing the bartering (either dude_obj or inven_dude)
 Critter arg1 - the critter being bartered with
 int     arg2 - the default value of the goods
 Critter arg3 - table of requested goods (being bought from NPC)
-int     arg4 - the amount of actual caps in the barter stack (as opposed to goods)
+int     arg4 - the number of actual caps in the barter stack (as opposed to goods)
 int     arg5 - the value of all goods being traded before skill modifications
 Critter arg6 - table of offered goods (being sold to NPC)
 int     arg7 - the total cost of the goods offered by the player
@@ -386,8 +394,10 @@ int     ret1 - The new maximum damage
 #### `HOOK_AMMOCOST (hs_ammocost.int)`
 
 Runs when calculating ammo cost for a weapon. Doesn't affect damage, only how much ammo is spent.\
-By default, weapons can make attacks when at least 1 ammo is left, regardless of ammo cost calculations.\
-To add proper check for ammo before attacking and proper calculation of the number of burst rounds (hook type 1 and 2 in `arg3`), set **CheckWeaponAmmoCost=1** in **Misc** section of ddraw.ini.
+By default, a weapon can perform an attack with at least one ammo, regardless of ammo cost calculation.\
+To add proper checks for ammo before attacking (hook type 1 in `arg3`), set **CheckWeaponAmmoCost=1** in **Misc** section of ddraw.ini.
+
+__NOTE:__ The return value must be greater than or equal to 0 to be valid.
 
 ```
 Item    arg0 - The weapon
@@ -466,10 +476,12 @@ Example message (vanilla behavior):\
 ```
 Critter arg0 - Thief
 Obj     arg1 - The target
-Item    arg2 - Item being stolen/planted
+Item    arg2 - The item being stolen/planted
 int     arg3 - 0 when stealing, 1 when planting
+int     arg4 - quantity of the item being stolen/planted
 
-int     ret0 - overrides hard-coded handler (1 - force success, 0 - force fail, -1 - use engine handler)
+int     ret0 - overrides hard-coded handler (2 - force fail without closing window, 1 - force success, 0 - force fail, -1 - use engine handler)
+int     ret1 - overrides experience points gained for stealing this item (must be greater than or equal to 0)
 ```
 
 -------------------------------------------
@@ -504,7 +516,8 @@ int     ret0 - overrides the returned result of the function:
 
 #### `HOOK_INVENTORYMOVE (hs_inventorymove.int)`
 
-Runs before moving items between inventory slots in dude interface. You can override the action.\
+Runs before moving items between inventory slots in dude interface. You can override the action.
+
 What you can NOT do with this hook:
 - force moving items to inappropriate slots (like gun in armor slot)
 
@@ -529,6 +542,11 @@ Item    arg2 - Item being replaced, weapon being reloaded, or container being fi
 
 int     ret0 - Override setting (-1 - use engine handler, any other value - prevent relocation of item/reloading weapon/picking up item)
 ```
+
+Notes for the event of dropping items on the ground:
+- the event is called for each item when dropping multiple items from the stack
+- for ammo type items, the number of dropped ammo in a pack can be found by using the `get_weapon_ammo_count` function
+- for the `PID_BOTTLE_CAPS` item, the event is called only once, and the number of dropped units can be found from the value of the `OBJ_DATA_CUR_CHARGES` object field (or with the `get_weapon_ammo_count` function)
 
 -------------------------------------------
 
@@ -675,10 +693,12 @@ An example usage would be to add an additional description to the item based on 
 
 Does not run if the script of the object overrides the description.
 
+__NOTE:__ Returning a pointer to the new text received from the `get_string_pointer` function is still valid, but the method is DEPRECATED and is left for backward compatibility only.
+
 ```
 Obj     arg0 - the object
 
-int     ret0 - a pointer to the new text received by using get_string_pointer function
+String  ret0 - the new description text to use
 ```
 
 -------------------------------------------
@@ -695,7 +715,7 @@ Obj     arg1 - the target object/critter
 int     arg2 - skill being used
 
 int     ret0 - a new critter to override the user critter. Pass -1 to cancel the skill use, pass 0 to skip this return value
-int     ret1 - pass 1 to allow the skill being used in combat (only for dude_obj or critter being controlled by the player)
+int     ret1 - pass 1 to allow the skill to be used in combat (only for dude_obj or critter being controlled by the player)
 ```
 
 -------------------------------------------
@@ -786,10 +806,12 @@ Runs before or after Fallout engine executes a standard procedure (handler) in a
 __NOTE:__ This hook will not be executed for `start`, `critter_p_proc`, `timed_event_p_proc`, and `map_update_p_proc` procedures.
 
 ```
-int     arg0 - the number of the standard script handler (see define.h)
+int     arg0 - the number of the standard script handler (see *_proc in define.h)
 Obj     arg1 - the object that owns this handler (self_obj)
 Obj     arg2 - the object that called this handler (source_obj, can be 0)
 int     arg3 - 1 after procedure execution (for HOOK_STDPROCEDURE_END), 0 otherwise
+Obj     arg4 - the object that is acted upon by this handler (target_obj, can be 0)
+int     arg5 - the parameter of this call (fixed_param), useful for combat_proc
 
 int     ret0 - pass -1 to cancel the execution of the handler (only for HOOK_STDPROCEDURE)
 ```
@@ -908,7 +930,7 @@ For the player, this happens when the game updates the item data for active item
 Critter arg0 - the critter doing the check
 Item    arg1 - the item being checked
 int     arg2 - attack type (see ATKTYPE_* constants), or -1 for dude_obj
-int     arg3 - original result of engine function: 1 - can use, 0 - can't use
+int     arg3 - original result of engine function: 1 - can use, 0 - cannot use
 
 int     ret0 - overrides the result of engine function. Any non-zero value allows using the weapon
 ```

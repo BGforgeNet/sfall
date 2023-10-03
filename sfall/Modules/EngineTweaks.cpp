@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2021  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -27,9 +27,10 @@ namespace sfall
 {
 
 void EngineTweaks::init() {
-	auto tweaksFile = IniReader::GetConfigString("Misc", "TweaksFile", "", MAX_PATH);
+	auto tweaksFile = IniReader::GetConfigString("Misc", "TweaksFile", "");
 	if (!tweaksFile.empty()) {
 		const char* cTweaksFile = tweaksFile.insert(0, ".\\").c_str();
+		if (GetFileAttributesA(cTweaksFile) == INVALID_FILE_ATTRIBUTES) return;
 
 		game::Items::SetHealingPID(0, IniReader::GetInt("Items", "STIMPAK", fo::PID_STIMPAK, cTweaksFile));
 		game::Items::SetHealingPID(1, IniReader::GetInt("Items", "SUPER_STIMPAK", fo::PID_SUPER_STIMPAK, cTweaksFile));

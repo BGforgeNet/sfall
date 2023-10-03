@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2016  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -603,9 +603,9 @@ struct CritInfo {
 			long statMod;
 			// Another bit field, using the same values as EffectFlags. If the stat check is failed, these are applied in addition to the earlier ones.
 			long failureEffect;
-			// The message to show when this critical occurs, taken from combat.msg .
+			// The message to show when this critical occurs, taken from combat.msg.
 			long message;
-			// Shown instead of Message if the stat check is failed.
+			// This is shown instead of Message if the stat check fails.
 			long failMessage;
 		};
 		long values[7];

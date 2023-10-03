@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2009, 2010  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -84,7 +84,7 @@ static DWORD CalcCRCInternal(BYTE* data, DWORD size) {
 }
 
 static bool CheckExtraCRC(DWORD crc) {
-	auto extraCrcList = IniReader::GetListDefaultConfig("Debugging", "ExtraCRC", "", 512, ',');
+	auto extraCrcList = IniReader::GetListDefaultConfig("Debugging", "ExtraCRC", "", ',');
 	if (!extraCrcList.empty()) {
 		return std::any_of(extraCrcList.begin(), extraCrcList.end(), [crc](const std::string& testCrcStr) {
 			auto testedCrc = strtoul(testCrcStr.c_str(), 0, 16);

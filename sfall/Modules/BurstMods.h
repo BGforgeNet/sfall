@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2014  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,8 @@ class BurstMods : public Module {
 public:
 	const char* name() { return "BurstMods"; }
 	void init();
+
+	static void SetComputeSpraySettings(long centerMult, long centerDiv, long targetMult, long targetDiv);
 };
 
 }

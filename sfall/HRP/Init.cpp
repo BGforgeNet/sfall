@@ -1,6 +1,6 @@
 /*
  *    sfall
- *    Copyright (C) 2008-2021  The sfall team
+ *    Copyright (C) 2008-2023  The sfall team
  *
  */
 
@@ -291,8 +291,8 @@ void Setting::init(const char* exeFileName, std::string &cmdline) {
 
 	// add: patchXXX.dat > sfall.dat > [add here] > critter.dat > master.dat
 	sf::LoadOrder::AddResourcePatches(
-		sf::IniReader::GetString("Main", "f2_res_dat", "f2_res.dat", MAX_PATH, f2ResIni),
-		sf::IniReader::GetString("Main", "f2_res_patches", "", MAX_PATH, f2ResIni)
+		sf::IniReader::GetString("Main", "f2_res_dat", "f2_res.dat", f2ResIni),
+		sf::IniReader::GetString("Main", "f2_res_patches", "", f2ResIni)
 	);
 
 	/* Inject hacks */
