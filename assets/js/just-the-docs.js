@@ -73,7 +73,7 @@ function disableHeadStyleSheets() {
 
 function initSearch() {
   var request = new XMLHttpRequest();
-  request.open('GET', '/assets/js/search-data.json', true);
+  request.open('GET', '/sfall/assets/js/search-data.json', true);
 
   request.onload = function(){
     if (request.status >= 200 && request.status < 400) {
@@ -452,7 +452,7 @@ jtd.getTheme = function() {
 
 jtd.setTheme = function(theme) {
   var cssFile = document.querySelector('[rel="stylesheet"]');
-  cssFile.setAttribute('href', '/assets/css/just-the-docs-' + theme + '.css');
+  cssFile.setAttribute('href', '/sfall/assets/css/just-the-docs-' + theme + '.css');
 }
 
 // Note: pathname can have a trailing slash on a local jekyll server
@@ -473,6 +473,7 @@ function scrollNav() {
   if (targetLink) {
     const rect = targetLink.getBoundingClientRect();
     document.getElementById('site-nav').scrollBy(0, rect.top - 3*rect.height);
+    targetLink.removeAttribute('href');
   }
 }
 
@@ -483,7 +484,6 @@ function activateNav() {
   var target = navLink();
   if (target) {
     target.classList.toggle('active', true);
-    target.removeAttribute('href');
   }
   while (target) {
     while (target && !(target.classList && target.classList.contains('nav-list-item'))) {
