@@ -45,7 +45,7 @@ jobs:
         with:
           upstream_sync_repo: sfall-team/sfall
           upstream_sync_branch: master
-          upstream_pull_args: "--ff-only --tags"
+          upstream_pull_args: "--tags"
           target_sync_branch: better-docs
           target_repo_token: ${{ secrets.GITHUB_TOKEN }}
           shallow_since: "10 years"
