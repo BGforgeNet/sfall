@@ -77,7 +77,7 @@ function disableHeadStyleSheets() {
 
 function initSearch() {
   var request = new XMLHttpRequest();
-  request.open('GET', '/assets/js/search-data.json', true);
+  request.open('GET', '/sfall/assets/js/search-data.json', true);
 
   request.onload = function(){
     if (request.status >= 200 && request.status < 400) {
@@ -456,18 +456,35 @@ jtd.getTheme = function() {
 
 jtd.setTheme = function(theme) {
   var cssFile = document.querySelector('[rel="stylesheet"]');
-  cssFile.setAttribute('href', '/assets/css/just-the-docs-' + theme + '.css');
+  cssFile.setAttribute('href', '/sfall/assets/css/just-the-docs-' + theme + '.css');
 }
 
 // Note: pathname can have a trailing slash on a local jekyll server
 // and not have the slash on GitHub Pages
 
 function navLink() {
-  var href = document.location.pathname;
-  if (href.endsWith('/') && href != '/') {
-    href = href.slice(0, -1);
+  var pathname = document.location.pathname;
+
+  var navLink = document.getElementById('site-nav').querySelector('a[href="' + pathname + '"]');
+  if (navLink) {
+    return navLink;
   }
-  return document.getElementById('site-nav').querySelector('a[href="' + href + '"], a[href="' + href + '/"]');
+
+  // The `permalink` setting may produce navigation links whose `href` ends with `/` or `.html`.
+  // To find these links when `/` is omitted from or added to pathname, or `.html` is omitted:
+
+  if (pathname.endsWith('/') && pathname != '/') {
+    pathname = pathname.slice(0, -1);
+  }
+
+  if (pathname != '/') {
+    navLink = document.getElementById('site-nav').querySelector('a[href="' + pathname + '"], a[href="' + pathname + '/"], a[href="' + pathname + '.html"]');
+    if (navLink) {
+      return navLink;
+    }
+  }
+
+  return null; // avoids `undefined`
 }
 
 // Scroll site-nav to ensure the link to the current page is visible
@@ -502,10 +519,12 @@ function activateNav() {
 // Document ready
 
 jtd.onReady(function(){
-  initNav();
+  if (document.getElementById('site-nav')) {
+    initNav();
+    activateNav();
+    scrollNav();
+  }
   initSearch();
-  activateNav();
-  scrollNav();
 });
 
 // Copy button on code
