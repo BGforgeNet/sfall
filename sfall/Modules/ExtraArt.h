@@ -16,38 +16,36 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define DL_MAIN      (0)
-#define DL_INIT      (0x1)
-#define DL_HOOK      (0x2)
-#define DL_SCRIPT    (0x4)
-#define DL_CRITICALS (0x8)
-#define DL_FIX       (0x10)
+#pragma once
 
-#ifndef NO_SFALL_DEBUG
-#include <stdio.h>
-#include <string>
+#include "Module.h"
 
-namespace sfall
+namespace fo
+{
+	struct FrmFile;
+}
+
+namespace sfall 
 {
 
-void dlog(const char* msg, int type);
-void dlog(const std::string& msg, int type);
-void dlogr(const char* msg, int type);
-void dlogr(const std::string& msg, int type);
-void dlog_f(const char* fmt, int type, ...);
+struct PcxFile {
+	unsigned char* pixelData;
+	long width;
+	long height;
 
-#ifndef NDEBUG
-// Prints debug message to sfall log file for develop build
-void devlog_f(const char* fmt, int type, ...);
-#else
-#define devlog_f(...) ((void)0)
-#endif
+	PcxFile() : pixelData(nullptr), width(0), height(0) {}
+};
 
-void LoggingInit();
+class ExtraArt : public Module {
+public:
+	const char* name() { return "ExtraArt"; }
+	void init();
+};
+
+fo::FrmFile* LoadFrmFileCached(const char* file);
+PcxFile LoadPcxFileCached(const char* file);
+
+bool UnlistedFrmExists(const char* frmName, unsigned int folderRef);
+fo::FrmFile* LoadUnlistedFrmCached(const char* file, unsigned int folderRef);
 
 }
-#else
-#define dlog(a,b)
-#define dlogr(a,b)
-#define dlog_f(a, b, ...)
-#endif
