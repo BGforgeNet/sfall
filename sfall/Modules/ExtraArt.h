@@ -20,20 +20,29 @@
 
 #include "Module.h"
 
-namespace fo
-{
-	struct FrmFile;
-}
-
-namespace sfall 
+namespace sfall
 {
 
 struct PcxFile {
-	unsigned char* pixelData;
-	long width;
-	long height;
+	BYTE* pixelData;
+	long  width;
+	long  height;
 
 	PcxFile() : pixelData(nullptr), width(0), height(0) {}
+};
+
+class TempFrmHandle {
+public:
+	TempFrmHandle(fo::FrmFile* frm);
+	TempFrmHandle(const TempFrmHandle&) = delete;
+	TempFrmHandle(TempFrmHandle&&);
+	TempFrmHandle& operator=(TempFrmHandle) = delete;
+	~TempFrmHandle();
+
+	bool IsValid();
+	const fo::FrmFile& Frm() const;
+private:
+	fo::FrmFile* _frm;
 };
 
 class ExtraArt : public Module {
@@ -42,10 +51,13 @@ public:
 	void init();
 };
 
+// TODO: more robust caching, similar to how art_ptr_lock works.
 fo::FrmFile* LoadFrmFileCached(const char* file);
 PcxFile LoadPcxFileCached(const char* file);
 
 bool UnlistedFrmExists(const char* frmName, unsigned int folderRef);
+fo::FrmFile* LoadUnlistedFrm(const char* frmName, unsigned int folderRef);
 fo::FrmFile* LoadUnlistedFrmCached(const char* file, unsigned int folderRef);
+void UnloadFrmFile(fo::FrmFile* frm);
 
 }
