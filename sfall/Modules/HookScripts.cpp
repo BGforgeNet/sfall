@@ -31,6 +31,7 @@
 #include "HookScripts\InventoryHs.h"
 #include "HookScripts\ObjectHs.h"
 #include "HookScripts\MiscHs.h"
+#include "HookScripts\SoundHs.h"
 
 #include "HookScripts.h"
 
@@ -106,10 +107,23 @@ static HooksInjectInfo injectHooks[] = {
 	{HOOK_TARGETOBJECT,     Inject_TargetObjectHook,     0},
 	{HOOK_ENCOUNTER,        Inject_EncounterHook,        0},
 	{HOOK_ADJUSTPOISON,     Inject_AdjustPoisonHook,     0},
-	{HOOK_ADJUSTRADS,       Inject_AdjustRadsHook,       1},  // always embedded for party control fix
+	{HOOK_ADJUSTRADS,       Inject_AdjustRadsHook,       1}, // always embedded for party control fix
 	{HOOK_ROLLCHECK,        Inject_RollCheckHook,        0},
 	{HOOK_BESTWEAPON,       Inject_BestWeaponHook,       0},
 	{HOOK_CANUSEWEAPON,     Inject_CanUseWeaponHook,     0},
+	{-1}, // RESERVED
+	{-1}, // RESERVED
+	{-1}, // HOOK_MOUSEWHEEL
+	{-1}, // RESERVED
+	{-1}, // RESERVED
+	{-1}, // RESERVED
+	{-1}, // HOOK_COMBATATTACK
+	{-1}, // RESERVED
+	{-1}, // RESERVED
+	{-1}, // RESERVED
+	{-1}, // RESERVED
+	{-1}, // RESERVED
+	{HOOK_BUILDSFXWEAPON,   Inject_BuildSfxWeaponHook,   0},
 };
 
 void HookScripts::InjectingHook(int hookId) {
@@ -129,7 +143,7 @@ bool HookScripts::HookHasScript(int hookId) {
 }
 
 void HookScripts::RegisterHook(fo::Program* script, int id, int procNum, bool specReg) {
-	if (id >= numHooks) return;
+	if (id >= numHooks || injectHooks[id].id < 0) return;
 	for (std::vector<HookScript>::iterator it = hooks[id].begin(); it != hooks[id].end(); ++it) {
 		if (it->prog.ptr == script) {
 			if (procNum == 0) hooks[id].erase(it); // unregister
@@ -216,6 +230,7 @@ void HookScripts::LoadHookScripts() {
 		InitInventoryHookScripts();
 		InitObjectHookScripts();
 		InitMiscHookScripts();
+		InitSoundHookScripts();
 
 		HookScripts::LoadHookScript("hs_keypress", HOOK_KEYPRESS);
 		HookScripts::LoadHookScript("hs_mouseclick", HOOK_MOUSECLICK);
