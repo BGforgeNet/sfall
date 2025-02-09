@@ -805,33 +805,33 @@ end:
 	}
 }
 
-static __declspec(naked) void HeaveHoHack() {
+static __declspec(naked) void item_w_range_hack_heave_ho() {
+	static const DWORD item_w_range_heave_ho_Ret = 0x478AFC;
 	using namespace fo;
 	__asm {
 		xor  edx, edx;
 		mov  eax, ecx;
 		call fo::funcoffs::stat_level_;
-		lea  ebx, [0 + eax * 4];
+		lea  ebx, [eax * 4];
 		sub  ebx, eax;      // ST * 3
-		cmp  ebx, esi;      // ebx = dist (3*ST), esi = max dist weapon
+		cmp  ebx, esi;      // ebx = dist (3*ST), esi = weapon max dist
 		cmovg ebx, esi;     // if dist > max then dist = max
 		mov  eax, ecx;
 		mov  edx, PERK_heave_ho;
 		call fo::funcoffs::perk_level_;
-		lea  ecx, [0 + eax * 8];
+		lea  ecx, [eax * 8];
 		sub  ecx, eax;
 		sub  ecx, eax;
 		mov  eax, ecx;
 		add  eax, ebx;      // distance = dist + (PERK_heave_ho * 6)
-		push 0x478AFC;
-		retn;
+		jmp  item_w_range_heave_ho_Ret;
 	}
 }
 
 bool Perks::perkHeaveHoModTweak = false;
 
 void __stdcall Perks::ApplyHeaveHoFix() { // not really a fix
-	MakeJump(0x478AC4, HeaveHoHack);
+	MakeJump(0x478AC4, item_w_range_hack_heave_ho);
 	perks[fo::Perk::PERK_heave_ho].strengthMin = 0;
 	perkHeaveHoModTweak = true;
 }
