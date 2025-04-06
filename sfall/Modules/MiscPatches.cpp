@@ -20,6 +20,7 @@
 #include "..\FalloutEngine\Fallout2.h"
 #include "..\SimplePatch.h"
 #include "..\Translate.h"
+#include "..\WinProc.h"
 
 #include "LoadGameHook.h"
 
@@ -38,9 +39,13 @@ static int* scriptDialog = nullptr;
 
 static __declspec(naked) void GNW95_process_message_hack() {
 	__asm {
-		push idle;
-		call Sleep;
-		cmp  dword ptr ds:[FO_VAR_GNW95_isActive], 0;
+		call WinProc::WaitMessageWindow;
+		add  esp, 0x20;
+		pop  edi;
+		pop  esi;
+		pop  edx;
+		pop  ecx;
+		pop  ebx;
 		retn;
 	}
 }
@@ -894,7 +899,7 @@ static void EngineOptimizationPatches() {
 }
 
 void MiscPatches::SetIdle(int value) {
-	idle = (value > 50) ? 50 : value;
+	idle = value;
 }
 
 void MiscPatches::init() {
@@ -949,9 +954,8 @@ void MiscPatches::init() {
 	fo::var::idle_func = reinterpret_cast<void*>(Sleep);
 	SafeWrite16(0x4C9F12, 0x7D6A); // push 125 (ms)
 
-	int ms = IniReader::GetConfigInt("Misc", "ProcessorIdle", -1);
-	if (ms > idle) SetIdle(ms);
-	if (idle >= 0) MakeCall(0x4C9CF8, GNW95_process_message_hack, 2);
+	if (idle <= 0) idle = IniReader::GetConfigInt("Misc", "ProcessorIdle", -1);
+	if (idle > 0) MakeJump(0x4C9DA9, GNW95_process_message_hack, 3); // replace hack function from HRP by Mash
 
 	BlockCall(0x4425E6); // Patch out ereg call
 
