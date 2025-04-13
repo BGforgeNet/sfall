@@ -144,7 +144,7 @@ static void __stdcall SplitPrintMessage(char* message, void* printFunc) {
 	char* text = message;
 	while (*text) {
 		if (text[0] == '\\' && text[1] == 'n') {
-			*text = 0; // set null terminator
+			*text = '\0'; // set null terminator
 
 			__asm mov  eax, message;
 			__asm call printFunc;

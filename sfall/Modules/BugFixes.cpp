@@ -42,7 +42,7 @@ static DWORD critterBody = 0;
 static DWORD sizeOnBody = 0;
 static DWORD weightOnBody = 0;
 
-static char messageBuffer[355];
+static char messageBuffer[360];
 
 /*
 	Saving a list of PIDs for saved drug effects
@@ -1748,7 +1748,7 @@ static __declspec(naked) void compute_damage_hack() {
 	}
 }
 
-static int currDescLen = 0;
+static size_t currDescLen = 0;
 static bool showItemDescription = false;
 
 static void __stdcall AppendText(const char* text, const char* desc) {
@@ -1757,7 +1757,7 @@ static void __stdcall AppendText(const char* text, const char* desc) {
 			desc = fo::util::MessageSearch(&fo::var::proto_main_msg_file, 493);
 		}
 		strncpy_s(messageBuffer, desc, 161);
-		int len = strlen(messageBuffer);
+		size_t len = strlen(messageBuffer);
 		if (len > 160) {
 			len = 158;
 			messageBuffer[len++] = '.';
@@ -1765,10 +1765,10 @@ static void __stdcall AppendText(const char* text, const char* desc) {
 			messageBuffer[len++] = '.';
 		}
 		messageBuffer[len++] = ' ';
-		messageBuffer[len] = 0;
+		messageBuffer[len] = '\0';
 		currDescLen = len;
 	} else if (currDescLen == 0) {
-		messageBuffer[0] = 0;
+		messageBuffer[0] = '\0';
 	}
 
 	strncat(messageBuffer, text, 64);
@@ -1776,7 +1776,7 @@ static void __stdcall AppendText(const char* text, const char* desc) {
 	if (currDescLen < 300) {
 		messageBuffer[currDescLen++] = '.';
 		messageBuffer[currDescLen++] = ' ';
-		messageBuffer[currDescLen] = 0;
+		messageBuffer[currDescLen] = '\0';
 	}
 }
 
@@ -1802,7 +1802,6 @@ static __declspec(naked) void obj_examine_func_hack_ammo1() {
 		call AppendText;
 		mov  currDescLen, 0;
 		lea  eax, messageBuffer;
-		jmp  fo::funcoffs::gdialogDisplayMsg_;
 skip:
 		jmp  dword ptr [esp + 0x1AC - 0x14 + 4];
 	}
@@ -1823,6 +1822,35 @@ static __declspec(naked) void obj_examine_func_hack_weapon() {
 		lea  eax, messageBuffer;
 skip:
 		jmp  ObjExamineFuncWeapon_Ret;
+	}
+}
+
+static void __fastcall StripNewlines(char* desc) {
+	size_t i = 0, j = 0;
+	while (desc[i] && j < sizeof(messageBuffer) - 1) {
+		if (desc[i] == '\\' && desc[i + 1] == 'n') {
+			messageBuffer[j++] = ' ';
+			i += 2;
+		} else {
+			messageBuffer[j++] = desc[i++];
+		}
+	}
+	messageBuffer[j] = '\0'; // null-terminate the modified string
+}
+
+static __declspec(naked) void obj_examine_func_hack_objdesc() {
+	__asm {
+		cmp  dword ptr [esp + 0x1AC - 0x14 + 4], 0x445448; // gdialogDisplayMsg_
+		jne  skip;
+		push ecx;
+		mov  ecx, eax;
+		call StripNewlines;
+		pop  ecx;
+		lea  eax, messageBuffer;
+		mov  esi, eax;
+skip:
+		mov  edx, ds:[FO_VAR_proto_none_str]; // overwritten engine code
+		retn;
 	}
 }
 
@@ -3929,6 +3957,9 @@ void BugFixes::init() {
 		dlogr("Applying full item description in barter patch.", DL_FIX);
 		HookCall(0x49B452, obj_examine_func_hack_weapon); // it's jump
 	}
+	// Remove visible newline control characters when examining items in the barter screen
+	// Supplementary fix for hacks in Game\GUI\Text.cpp
+	MakeCall(0x49AE33, obj_examine_func_hack_objdesc, 1);
 
 	// Display experience points with the bonus from Swift Learner perk when gained from non-scripted situations
 	//if (IniReader::GetConfigInt("Misc", "DisplaySwiftLearnerExp", 1)) {
