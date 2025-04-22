@@ -227,6 +227,7 @@ FakesAssemblies/
 sfall/postbuild.cmd
 
 # jekyll build files
+.bundle
 docs/_site
 docs/.sass-cache
 docs/.jekyll-metadata
