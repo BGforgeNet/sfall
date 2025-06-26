@@ -12,14 +12,14 @@ jobs:
     name: Sync master with upstream/master
     steps:
       - name: Checkout master
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: master
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull (Fast-Forward) upstream changes
         id: sync-master
-        uses: aormsby/Fork-Sync-With-Upstream-action@v3.4
+        uses: aormsby/Fork-Sync-With-Upstream-action@v3.4.1
         with:
           upstream_sync_repo: sfall-team/sfall
           upstream_sync_branch: master
@@ -33,7 +33,7 @@ jobs:
     name: Sync better-docs with upstream/master
     steps:
       - name: Checkout better-docs
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: better-docs
           token: ${{ secrets.GITHUB_TOKEN }}
