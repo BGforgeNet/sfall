@@ -26,9 +26,11 @@ jobs:
         run: ./docs/generate.sh
 
       - name: Deploy
+        if: github.ref == 'refs/heads/better-docs'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./docs/_site
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
+          cname: sfall.bgforge.net
