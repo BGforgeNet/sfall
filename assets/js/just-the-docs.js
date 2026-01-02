@@ -29,7 +29,7 @@ function initNav() {
     }
     if (target) {
       e.preventDefault();
-      target.ariaPressed = target.parentNode.classList.toggle('active');
+      target.ariaExpanded = target.parentNode.classList.toggle('active');
     }
   });
 
@@ -45,11 +45,11 @@ function initNav() {
     if (menuButton.classList.toggle('nav-open')) {
       siteNav.classList.add('nav-open');
       mainHeader.classList.add('nav-open');
-      menuButton.ariaPressed = true;
+      menuButton.ariaExpanded = true;
     } else {
       siteNav.classList.remove('nav-open');
       mainHeader.classList.remove('nav-open');
-      menuButton.ariaPressed = false;
+      menuButton.ariaExpanded = false;
     }
   });
 }
@@ -77,7 +77,7 @@ function disableHeadStyleSheets() {
 
 function initSearch() {
   var request = new XMLHttpRequest();
-  request.open('GET', '/assets/js/search-data.json', true);
+  request.open('GET', '/sfall/assets/js/search-data.json', true);
 
   request.onload = function(){
     if (request.status >= 200 && request.status < 400) {
@@ -225,7 +225,7 @@ function searchLoaded(index, docs) {
       // note: the SVG svg-doc is only loaded as a Jekyll include if site.search_enabled is true; see _includes/icons/icons.html
       var resultDoc = document.createElement('div');
       resultDoc.classList.add('search-result-doc');
-      resultDoc.innerHTML = '<svg viewBox="0 0 24 24" class="search-result-icon"><use xlink:href="#svg-doc"></use></svg>';
+      resultDoc.innerHTML = '<svg viewBox="0 0 24 24" class="search-result-icon" aria-hidden="true"><use xlink:href="#svg-doc"></use></svg>';
       resultTitle.appendChild(resultDoc);
 
       var resultDocTitle = document.createElement('div');
@@ -456,7 +456,7 @@ jtd.getTheme = function() {
 
 jtd.setTheme = function(theme) {
   var cssFile = document.querySelector('[rel="stylesheet"]');
-  cssFile.setAttribute('href', '/assets/css/just-the-docs-' + theme + '.css');
+  cssFile.setAttribute('href', '/sfall/assets/css/just-the-docs-' + theme + '.css');
 }
 
 // Note: pathname can have a trailing slash on a local jekyll server
@@ -525,6 +525,16 @@ jtd.onReady(function(){
     scrollNav();
   }
   initSearch();
+});
+
+// Accessibility: set tabindex=0 on each code highlight block, so screenreaders
+// can focus over (particularly important if there's horizontal scroll)
+// see: https://dequeuniversity.com/rules/axe/4.9/scrollable-region-focusable?application=axeAPI
+
+jtd.onReady(() => {
+  document
+    .querySelectorAll("div.highlight")
+    .forEach(codeBlock => codeBlock.setAttribute("tabindex", "0"));
 });
 
 // Copy button on code
