@@ -77,7 +77,7 @@ function disableHeadStyleSheets() {
 
 function initSearch() {
   var request = new XMLHttpRequest();
-  request.open('GET', '/assets/js/search-data.json', true);
+  request.open('GET', '/sfall/assets/js/search-data.json', true);
 
   request.onload = function(){
     if (request.status >= 200 && request.status < 400) {
@@ -382,6 +382,25 @@ function searchLoaded(index, docs) {
     setTimeout(update, 0);
   });
 
+  // When the search bar is *not* focused, it should be hidden. This code
+  // manages that - which is a bit tricky given that we can't just rely on
+  // focusout, since we could be re-focusing within the search itself.
+  const updateSearchFocus = function(evt) {
+    const nextFocusedElement = evt.relatedTarget;
+
+    // Re-focusing on search bar - "keep focus"
+    if (nextFocusedElement.id === 'search-input') return;
+
+    // Re-focusing on the next search result element - "keep focus"
+    if (nextFocusedElement.classList.contains('search-result')) return;
+
+    // Otherwise, we're not focused on the search bar anymore. Hide!
+    hideSearch();
+  }
+
+  searchInput.addEventListener('focusout', updateSearchFocus);
+  searchResults.addEventListener('focusout', updateSearchFocus);
+
   jtd.addEvent(searchInput, 'keyup', function(e){
     switch (e.keyCode) {
       case 27: // When esc key is pressed, hide the results and clear the field
@@ -456,7 +475,7 @@ jtd.getTheme = function() {
 
 jtd.setTheme = function(theme) {
   var cssFile = document.querySelector('[rel="stylesheet"]');
-  cssFile.setAttribute('href', '/assets/css/just-the-docs-' + theme + '.css');
+  cssFile.setAttribute('href', '/sfall/assets/css/just-the-docs-' + theme + '.css');
 }
 
 // Note: pathname can have a trailing slash on a local jekyll server
