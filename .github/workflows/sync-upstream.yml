@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: master
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.SYNC_WORKFLOW_TOKEN }}
 
       - name: Pull (Fast-Forward) upstream changes
         id: sync-master
@@ -25,7 +25,7 @@ jobs:
           upstream_sync_branch: master
           upstream_pull_args: "--ff-only --tags"
           target_sync_branch: master
-          target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+          target_repo_token: ${{ secrets.SYNC_WORKFLOW_TOKEN }}
           shallow_since: "10 years"
 
   sync_better_docs:
@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: better-docs
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.SYNC_WORKFLOW_TOKEN }}
           fetch-depth: 0
 
       - name: Pull (Fast-Forward) upstream changes (better-docs)
@@ -47,5 +47,5 @@ jobs:
           upstream_sync_branch: master
           upstream_pull_args: "--tags"
           target_sync_branch: better-docs
-          target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+          target_repo_token: ${{ secrets.SYNC_WORKFLOW_TOKEN }}
           shallow_since: "10 years"
