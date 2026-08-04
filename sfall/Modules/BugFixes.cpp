@@ -3684,6 +3684,16 @@ skip:
 	}
 }
 
+static __declspec(naked) void editor_design_hook_stat_button() {
+	__asm {
+		call fo::funcoffs::StatButton_;
+		xor  ebx, ebx;
+		xor  edx, edx;
+		mov  eax, STAT_base_count;
+		jmp  fo::funcoffs::PrintBasicStat_;
+	}
+}
+
 static __declspec(naked) void partyMemberLoad_hack() {
 	__asm {
 		pop  edx; // return addr
@@ -3718,6 +3728,19 @@ static __declspec(naked) void game_reset_hook() {
 	__asm {
 		call fo::funcoffs::game_unload_info_;
 		jmp  fo::funcoffs::game_load_info_;
+	}
+}
+
+static __declspec(naked) void map_load_file_hook_get_cursor() {
+	__asm {
+		call fo::funcoffs::gmouse_get_cursor_;
+		cmp  eax, 4;  // cursorType: scroll northwest
+		jl   end;
+		cmp  eax, 19; // cursorType: invalid scroll west
+		jg   end;
+		mov  eax, 1;  // cursorType: standard arrow
+end:
+		retn;
 	}
 }
 
@@ -4616,6 +4639,12 @@ void BugFixes::init() {
 	// Fix for minor visual glitch when selecting perks that modify SPECIAL stats
 	SafeWriteBatch<BYTE>(65, {0x434C76, 0x434D2A, 0x434E00, 0x434EB5}); // PrintBasicStat_ (was 40)
 
+	// Fix for minor visual glitch when adjusting SPECIAL stats during character creation
+	HookCall(0x432317, editor_design_hook_stat_button);
+
+	// Fix missing sounds for the SPECIAL stat +/- buttons in the character creation screen
+	SafeWriteBatch<WORD>(0x9090, {0x433901, 0x433966}); // remove incorrect button ID assignment (CharEditStart_)
+
 	// Fix potential index out of bounds error in wmMapIdxToName_ engine function
 	SafeWrite8(0x4BF97A, 0x7E); // jz > jle
 	SafeWrite8(0x4BF982, 0x7C); // jle > jl
@@ -4632,6 +4661,9 @@ void BugFixes::init() {
 
 	// Fix memory leak involving global variables on game load
 	HookCall(0x442BF3, game_reset_hook);
+
+	// Fix for the cursor getting stuck in view scrolling mode when entering an encounter
+	HookCall(0x482BB4, map_load_file_hook_get_cursor);
 }
 
 }
