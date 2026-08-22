@@ -42,7 +42,7 @@ static DWORD critterBody = 0;
 static DWORD sizeOnBody = 0;
 static DWORD weightOnBody = 0;
 
-static char messageBuffer[360];
+static char messageBuffer[512];
 
 /*
 	Saving a list of PIDs for saved drug effects
@@ -1030,8 +1030,12 @@ static __declspec(naked) void make_path_func_hook() {
 		je   fix;
 		jmp  fo::funcoffs::anim_can_use_door_;
 fix:	// replace the target tile (where the multihex object is located) with the current tile
-		mov  ebx, [esp + 0x5C - 0x14 + 4]; // current tile
-		mov  [esp + 0x5C - 0x1C + 4], ebx; // target tile
+		mov  eax, [esp + 0x5C - 0x14 + 4]; // current tile
+		mov  [esp + 0x5C - 0x1C + 4], eax; // target tile
+		lea  ebx, [esp + 0x5C - 0x40 + 4]; // target y
+		lea  edx, [esp + 0x5C - 0x3C + 4]; // target x
+		call fo::funcoffs::tile_coord_;    // update target coordinates
+		or   eax, 1; // continue pathfinding
 		retn;
 	}
 }
@@ -1844,7 +1848,7 @@ skip:
 	}
 }
 
-static void __fastcall StripNewlines(char* desc) {
+static void __fastcall StripNewlines(const char* desc) {
 	size_t i = 0, j = 0;
 	while (desc[i] && j < sizeof(messageBuffer) - 1) {
 		if (desc[i] == '\\' && desc[i + 1] == 'n') {
@@ -2818,6 +2822,52 @@ static __declspec(naked) void wmTownMapFunc_hack() {
 end:
 		add  esp, 4; // destroy the return address
 		jmp  wmTownMapFunc_Ret;
+	}
+}
+
+static __declspec(naked) void wmMatchWorldPosToArea_hack0() {
+	static const DWORD wmMatchWorldPosToArea_End = 0x4C3F9D;
+	__asm { // esi - world_xpos, edi - world_ypos
+		cmp  dword ptr ds:[FO_VAR_wmMaxAreaNum], AREA_CAR_OUTTA_GAS;
+		jle  skip; // no "car outta gas" area (less then 22 areas)
+		mov  eax, ds:[FO_VAR_wmAreaInfoList];
+		add  eax, 360 * AREA_CAR_OUTTA_GAS; // get car area info
+		cmp  dword ptr [eax + 0x38], 0;     // wmAreaInfoList.start_state
+		je   skip;                          // state unknown (hidden location)
+		cmp  esi, [eax + 0x2C];             // wmAreaInfoList.world_posx
+		jl   skip;
+		cmp  edi, [eax + 0x30];             // wmAreaInfoList.world_posy
+		jl   skip;
+		imul ecx, [eax + 0x34], 20;         // wmAreaInfoList.size
+		add  ecx, FO_VAR_wmSphereData;      // get car area sphere data (wm circle)
+		mov  ebx, [eax + 0x2C];
+		add  ebx, [ecx + 0x4];              // wmSphereData.width
+		cmp  esi, ebx;
+		jg   skip;
+		mov  ebx, [eax + 0x30];
+		add  ebx, [ecx + 0x8];              // wmSphereData.length
+		cmp  edi, ebx;
+		jg   skip;
+		mov  eax, [esp + 0x18 - 0x18 + 4];
+		mov  dword ptr [eax], AREA_CAR_OUTTA_GAS; // set current area
+		add  esp, 4;
+		jmp  wmMatchWorldPosToArea_End;
+skip:
+		mov  edx, ds:[FO_VAR_wmMaxAreaNum]; // overwritten engine code
+		retn;
+	}
+}
+
+static __declspec(naked) void wmMatchWorldPosToArea_hack1() {
+	static const DWORD wmMatchWorldPosToArea_Ret = 0x4C3F76;
+	__asm {
+		cmp  ebp, AREA_CAR_OUTTA_GAS; // ebp - area ID
+		je   skip;
+		mov  eax, ds:[FO_VAR_wmAreaInfoList]; // overwritten engine code
+		retn;
+skip:
+		add  esp, 4;
+		jmp  wmMatchWorldPosToArea_Ret;
 	}
 }
 
@@ -3990,7 +4040,7 @@ void BugFixes::init() {
 
 	//if (IniReader::GetConfigInt("Misc", "MultiHexPathingFix", 1)) {
 		dlogr("Applying MultiHex Pathing Fix.", DL_FIX);
-		HookCall(0x416144, make_path_func_hook); // Fix for building the path to the central hex of a multihex object
+		HookCall(0x416144, make_path_func_hook); // Fix for building a path to the central hex of a multihex object
 		//MakeCalls(MultiHexFix, {0x42901F, 0x429170}); // obsolete fix
 
 		// Fix for multihex critters moving too close and overlapping their targets in combat
@@ -4412,6 +4462,10 @@ void BugFixes::init() {
 		dlogr("Applying town map hotkeys patch.", DL_FIX);
 		MakeCall(0x4C495A, wmTownMapFunc_hack, 1);
 	}
+
+	// Fix for the "car outta gas" location being inaccessible when it is inside a town circle
+	MakeCall(0x4C3F14, wmMatchWorldPosToArea_hack0, 1); // check the car area before other normal areas
+	MakeCall(0x4C3F3F, wmMatchWorldPosToArea_hack1); // skip the car area to avoid duplication
 
 	// Fix for combat not ending automatically when there are no hostile critters
 	MakeCall(0x422CF3, combat_should_end_hack);
