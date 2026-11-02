@@ -51,11 +51,9 @@ def get_signature(item):
   if 'detail' in item:
     return item['detail']
   args = []
+  # defaults are listed under Arguments: the sfall_funcN lines already show which arguments can be omitted
   for a in item.get('args', []):
-    arg = "{} {}".format(a['type'], a['name'])
-    if 'default' in a:
-      arg += " = {}".format(a['default'])
-    args.append(arg)
+    args.append("{} {}".format(a['type'], a['name']))
   if 'metarule' in item:
     # one line per valid argument count: optional arguments are omitted from the right
     required = len([a for a in item.get('args', []) if a.get('optional') is not True])
@@ -67,15 +65,22 @@ def get_signature(item):
     return "{} {}".format(item['type'], item['name'])
   return "{} {}({})".format(item['type'], item['name'], ', '.join(args))
 
+def check_args(item):
+  errors = []
+  for a in item.get('args', []):
+    if a.get('optional') is True and 'default' not in a:
+      errors.append("{}: argument '{}' is optional but has no default".format(item['name'], a['name']))
+  return errors
+
 def get_args_doc(item):
   text = ""
   for a in item.get('args', []):
-    optional = a.get('optional') is True or 'default' in a
-    if 'doc' not in a and not optional:
+    # check_args guarantees that every optional argument has a default
+    if 'doc' not in a and 'default' not in a:
       continue
     text += "- `{}`".format(a['name'])
-    if optional:
-      text += " (optional)"
+    if 'default' in a:
+      text += " (optional, default `{}`)".format(a['default'])
     if 'doc' in a:
       text += ": " + a['doc'].rstrip('\n').replace('\n', '\n  ')
     text += "\n"
@@ -84,6 +89,9 @@ def get_args_doc(item):
 # functions pages
 with open(functions_yaml) as yf:
   data = yaml.load(yf)
+  errors = [e for cat in data for i in cat.get('items', []) for e in check_args(i)]
+  if errors:
+    sys.exit(functions_yaml + ":\n" + "\n".join(errors))
   for cat in data: # list categories
     text = ""
 
