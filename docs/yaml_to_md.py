@@ -51,9 +51,11 @@ def get_signature(item):
   if 'detail' in item:
     return item['detail']
   args = []
-  # defaults are listed under Arguments: the sfall_funcN lines already show which arguments can be omitted
   for a in item.get('args', []):
-    args.append("{} {}".format(a['type'], a['name']))
+    arg = "{} {}".format(a['type'], a['name'])
+    if 'default' in a:
+      arg += " = {}".format(a['default'])
+    args.append(arg)
   if 'metarule' in item:
     # one line per valid argument count: optional arguments are omitted from the right
     required = len([a for a in item.get('args', []) if a.get('optional') is not True])
@@ -75,12 +77,12 @@ def check_args(item):
 def get_args_doc(item):
   text = ""
   for a in item.get('args', []):
-    # check_args guarantees that every optional argument has a default
-    if 'doc' not in a and 'default' not in a:
+    optional = a.get('optional') is True or 'default' in a
+    if 'doc' not in a and not optional:
       continue
     text += "- `{}`".format(a['name'])
-    if 'default' in a:
-      text += " (optional, default `{}`)".format(a['default'])
+    if optional:
+      text += " (optional)"
     if 'doc' in a:
       text += ": " + a['doc'].rstrip('\n').replace('\n', '\n  ')
     text += "\n"
