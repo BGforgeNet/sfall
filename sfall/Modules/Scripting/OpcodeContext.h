@@ -168,9 +168,9 @@ private:
 
 	fo::Program* _program;
 	DWORD _opcode;
-	const char* _opcodeName; // name of opcode function (for error logging)
+	const char* _opcodeName = nullptr; // name of opcode function (for error logging)
 
-	const SfallMetarule* _metarule;
+	const SfallMetarule* _metarule = nullptr; // set only for metarule calls
 
 	int  _numArgs;
 	bool _hasReturn;
