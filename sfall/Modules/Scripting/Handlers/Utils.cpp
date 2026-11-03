@@ -170,7 +170,7 @@ static char* SubString(const char* str, int startPos, int length) {
 	}
 	// check position
 	if (startPos >= len) return ""; // start position is out of string length, return empty string
-	if (length == 0 || length + startPos > len) {
+	if (length == 0 || length > len - startPos) { // not (length + startPos): avoids overflow
 		length = len - startPos; // set the correct length, the length of characters goes beyond the end of the string
 	}
 
