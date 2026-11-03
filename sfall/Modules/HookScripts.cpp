@@ -146,7 +146,11 @@ void HookScripts::RegisterHook(fo::Program* script, int id, int procNum, bool sp
 	if (id < 0 || id >= numHooks || injectHooks[id].id < 0) return;
 	for (std::vector<HookScript>::iterator it = hooks[id].begin(); it != hooks[id].end(); ++it) {
 		if (it->prog.ptr == script) {
-			if (procNum == 0) hooks[id].erase(it); // unregister
+			if (procNum == 0) { // unregister
+				// keep hsPosition pointing at the hs_* script
+				if (it - hooks[id].begin() < hooksInfo[id].hsPosition) hooksInfo[id].hsPosition--;
+				hooks[id].erase(it);
+			}
 			return;
 		}
 	}
