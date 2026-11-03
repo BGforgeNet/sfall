@@ -1,0 +1,112 @@
+/*
+   Calls script functions with out-of-range input. Each call must return the expected value or log an error,
+   and the game must keep running. Run with debug output on (ddraw.ini [Debugging]).
+
+   Not covered here (need another kind of script or a manual step):
+   - add_g_timer_event from a map or object script: logs "can only be used in global or hook scripts".
+   - register_hook_proc(id, 0) after register_hook_proc_spec, or from an hs_* script for its own hook.
+   - message_box and create_message_window with text over 5120 characters.
+   - INI functions with a file name over 126 characters while IniConfigFolder is set.
+   - KarmaPoints with as many entries as KarmaFRMs, and a reputation above the last one.
+*/
+
+#include "../headers/sfall.h"
+
+variable test_suite_errors := 0;
+variable test_suite_verbose := true;
+
+procedure assertEquals(variable desc, variable a, variable b) begin
+   if (a != b or typeof(a) != typeof(b)) then begin
+      display_msg("Assertion failed \""+desc+"\": "+a+" != "+b);
+      test_suite_errors++;
+   end else if (test_suite_verbose) then begin
+      display_msg("Assert \""+desc+"\" ok");
+   end
+end
+
+procedure assertTrue(variable desc, variable a) begin
+   call assertEquals(desc, a != 0, true);
+end
+
+procedure empty_hook_proc begin
+end
+
+procedure repeat_str(variable s, variable n) begin
+   variable result := "", i := 0;
+   while (i < n) do begin
+      result := result + s;
+      i++;
+   end
+   return result;
+end
+
+procedure strings_tests begin
+   variable s;
+   display_msg("Testing strings...");
+   // substr: a huge length is clamped to the end of the string
+   call assertEquals("substr huge length", substr("abcdef", 2, 2147483647), "cdef");
+   // sprintf: output longer than the 5120-byte buffer is cut, not written before it
+   s := sprintf("%6000dX", 1);
+   call assertTrue("sprintf overflow cut", strlen(s) > 5000 and strlen(s) < 5120);
+   // sprintf: * takes no argument
+   call assertEquals("sprintf star", sprintf("%.*s", "abc"), "");
+   // sprintf: an int in a float conversion is converted
+   call assertEquals("sprintf int as float", sprintf("%.1f", 2), "2.0");
+end
+
+procedure arrays_tests begin
+   variable map, list;
+   display_msg("Testing arrays...");
+   map := temp_array_map;
+   map["a"] := 1;
+   call assertEquals("array_key map past end", array_key(map, 1), 0);
+   call assertEquals("array_key map last", array_key(map, 0), "a");
+   list := temp_array_list(2);
+   call assertEquals("array_key list at size", array_key(list, 2), 2);
+end
+
+procedure misc_tests begin
+   display_msg("Testing misc...");
+   call assertEquals("get_tile_fid bad tile", get_tile_fid(40000), 0);
+   register_hook_proc(-1, empty_hook_proc); // must not crash
+   call assertEquals("get_ini_setting long name", get_ini_setting(repeat_str("a", 150) + ".ini|sec|key"), -1);
+end
+
+procedure window_tests begin
+   variable arr;
+   display_msg("Testing script window...");
+   create_win("bndtest", 0, 0, 100, 100);
+   SelectWin("bndtest");
+   win_fill_color(-50, -50, 100, 100, 1);     // clipped to the window
+   win_fill_color(10, 10, -5, -5, 1);         // empty, does nothing
+   win_fill_color(2147483600, 0, 100, 10, 1); // outside, does nothing
+   call assertEquals("draw_image beyond window", draw_image("art\\inven\\5mmap.frm", 0, 90, 90, 0), -1);
+   call assertEquals("draw_image_scaled beyond window", draw_image_scaled("art\\inven\\5mmap.frm", 0, 90, 90, 50, 50), -1);
+   call assertEquals("draw_image unloadable FID", draw_image(0x05000FFF, 0, 0, 0, 0), -1);
+   arr := art_frame_data("art\\inven\\5mmap.frm", 0, 100); // direction out of range
+   call assertTrue("art_frame_data bad direction", arr);
+   DeleteWin("bndtest");
+end
+
+procedure interface_tests begin
+   display_msg("Testing interface bar...");
+   call assertEquals("interface_art_draw huge x", interface_art_draw(WINTYPE_IFACEBAR, "art\\inven\\5mmap.frm", 2147483600, 0), -1);
+   interface_art_draw_ex(WINTYPE_IFACEBAR, "art\\inven\\5mmap.frm", 0, 0, 0, temp_array_list(0)); // empty param array
+   interface_art_draw_ex(WINTYPE_IFACEBAR, "art\\inven\\5mmap.frm", 0, 0, 0, [100]);            // direction out of range
+   overlay_create(WINTYPE_IFACEBAR);
+   overlay_clear_rectangle(WINTYPE_IFACEBAR, 600, 90, 100, 100); // past the right and bottom edges
+   overlay_destroy(WINTYPE_IFACEBAR);
+   intface_redraw;
+end
+
+procedure start begin
+   if not game_loaded then return;
+
+   test_suite_errors := 0;
+   call strings_tests;
+   call arrays_tests;
+   call misc_tests;
+   call window_tests;
+   call interface_tests;
+   display_msg("All tests finished with "+test_suite_errors+" errors.");
+end
