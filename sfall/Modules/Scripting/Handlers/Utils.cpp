@@ -275,8 +275,9 @@ static const char* sprintf_lite(OpcodeContext& ctx, const char* opcodeName) {
 				}
 				newFmt[j++] = c;
 				newFmt[j] = '\0';
-				partLen = arg.isFloat()
-				        ? _snprintf(outBuf, bufCount, newFmt, arg.floatValue())
+				bool isFloatConv = (c == 'f' || c == 'F' || c == 'e' || c == 'E' || c == 'g' || c == 'G' || c == 'a' || c == 'A');
+				partLen = (arg.isFloat() || isFloatConv) // float conversions read a double argument
+				        ? _snprintf(outBuf, bufCount, newFmt, arg.asFloat())
 				        : _snprintf(outBuf, bufCount, newFmt, arg.rawValue());
 			}
 			if (partLen < 0 || partLen >= bufCount) { // truncated (_snprintf returns -1), or filled without a terminator
