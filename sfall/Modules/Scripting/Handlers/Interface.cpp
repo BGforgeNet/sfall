@@ -728,7 +728,7 @@ static long InterfaceDrawImage(OpcodeContext& ctx, fo::Window* ifaceWin) {
 	int width  = (w >= 0) ? w : frm.width;
 	int height = (h >= 0) ? h : frm.height;
 
-	if (x + width > ifaceWin->width || y + height > ifaceWin->height) {
+	if (width > ifaceWin->width - x || height > ifaceWin->height - y) { // not (x + width): avoids overflow
 		ctx.printOpcodeError("%s() - attempt to draw beyond window bounds (%d, %d)", ctx.getMetaruleName(), ifaceWin->width, ifaceWin->height);
 		return -1;
 	}
