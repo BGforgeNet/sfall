@@ -687,8 +687,8 @@ static long InterfaceDrawImage(OpcodeContext& ctx, fo::Window* ifaceWin) {
 	if (ctx.numArgs() > 5) { // array params
 		sArrayVar* sArray = GetRawArray(ctx.arg(5).rawValue());
 		if (sArray) {
-			if (direction < 0) direction = sArray->val[0].intVal;
 			int size = sArray->size();
+			if (direction < 0 && size > 0) direction = sArray->val[0].intVal;
 			if (size > 1) w = sArray->val[1].intVal;
 			if (size > 2) h = sArray->val[2].intVal;
 		}
