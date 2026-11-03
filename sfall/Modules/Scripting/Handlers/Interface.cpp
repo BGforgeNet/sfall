@@ -497,6 +497,7 @@ struct FrameData {
 
 	// Data from FRM file.
 	FrameData(fo::FrmFile* frmPtr, long direction, long frame) {
+		if (direction < 0 || direction > 5) direction = 0; // same as GetFrameData
 		fo::FrmFrameData* frmData = frmPtr->GetFrameData(direction, frame);
 		pixelData = frmData->data;
 		width = frmData->width;
