@@ -143,7 +143,7 @@ bool HookScripts::HookHasScript(int hookId) {
 }
 
 void HookScripts::RegisterHook(fo::Program* script, int id, int procNum, bool specReg) {
-	if (id >= numHooks || injectHooks[id].id < 0) return;
+	if (id < 0 || id >= numHooks || injectHooks[id].id < 0) return;
 	for (std::vector<HookScript>::iterator it = hooks[id].begin(); it != hooks[id].end(); ++it) {
 		if (it->prog.ptr == script) {
 			if (procNum == 0) hooks[id].erase(it); // unregister
