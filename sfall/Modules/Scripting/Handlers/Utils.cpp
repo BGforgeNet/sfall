@@ -248,6 +248,8 @@ static const char* sprintf_lite(OpcodeContext& ctx, const char* opcodeName) {
 		if (!conversion) {
 			// Start conversion.
 			if (c == '%') conversion = true;
+		} else if (c == '*') {
+			continue; // don't allow width/precision taken from arguments
 		} else if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '%') {
 			int partLen;
 			if (c == '%') {
