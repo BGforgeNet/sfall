@@ -571,6 +571,11 @@ static FrameData LockFrameData(unsigned long fid, fo::util::ArtCacheLock& lock, 
 	       : FrameData();
 }
 
+// the engine draws to the script window buffer without clipping
+static bool IsInScriptWindow(long x, long y, long width, long height) {
+	return (x >= 0 && y >= 0 && width <= fo::func::windowWidth() - x && height <= fo::func::windowHeight() - y);
+}
+
 static long DrawImage(OpcodeContext& ctx, bool isScaled) {
 	if (!fo::func::selectWindowID(ctx.program()->currentScriptWin) || fo::var::getInt(FO_VAR_currentWindow) == -1) {
 		ctx.printOpcodeError("%s() - no created or selected window.", ctx.getMetaruleName());
@@ -622,11 +627,19 @@ static long DrawImage(OpcodeContext& ctx, bool isScaled) {
 			if (s_width <= 0 || s_height <= 0) {
 				return 0;
 			}
+			if (!IsInScriptWindow(x, y, s_width, s_height)) {
+				ctx.printOpcodeError("%s() - attempt to draw beyond window bounds (%d, %d)", ctx.getMetaruleName(), fo::func::windowWidth(), fo::func::windowHeight());
+				return -1;
+			}
 
 			long w_width = fo::func::windowWidth();
 			long xy_pos = (y * w_width) + x;
 			fo::func::window_trans_cscale(frm.width, frm.height, s_width, s_height, xy_pos, w_width, frm.pixelData); // custom scaling
 		} else { // with x/y frame offsets
+			if (!IsInScriptWindow(x + frm.xOffset, y + frm.yOffset, frm.width, frm.height)) {
+				ctx.printOpcodeError("%s() - attempt to draw beyond window bounds (%d, %d)", ctx.getMetaruleName(), fo::func::windowWidth(), fo::func::windowHeight());
+				return -1;
+			}
 			fo::func::windowDisplayBuf(x + frm.xOffset, frm.width, y + frm.yOffset, frm.height, frm.pixelData, ctx.arg(4).rawValue());
 		}
 	}
