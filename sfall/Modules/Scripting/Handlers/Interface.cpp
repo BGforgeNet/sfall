@@ -564,7 +564,10 @@ static FrameData LockFrameData(unsigned long fid, fo::util::ArtCacheLock& lock, 
 		// Apply direction to FID.
 		fid = (direction << 28) | (fid & (0xFFFFFFF));
 	}
-	return FrameData(fo::func::art_ptr_lock(fid, &lock.entryPtr), direction, frame);
+	fo::FrmFile* frmPtr = fo::func::art_ptr_lock(fid, &lock.entryPtr);
+	return (frmPtr != nullptr)
+	       ? FrameData(frmPtr, direction, frame)
+	       : FrameData();
 }
 
 static long DrawImage(OpcodeContext& ctx, bool isScaled) {
