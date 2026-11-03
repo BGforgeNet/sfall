@@ -253,7 +253,7 @@ static const char* sprintf_lite(OpcodeContext& ctx, const char* opcodeName) {
 			if (c == '%') {
 				// escaped % sign, just copy newFmt up to (and including) the leading % sign
 				newFmt[j] = '\0';
-				strncpy_s(outBuf, bufCount, newFmt, j);
+				strncpy_s(outBuf, bufCount + 1, newFmt, _TRUNCATE); // bufCount excludes the terminator slot
 				partLen = j;
 			} else {
 				// ignore size prefixes
@@ -277,13 +277,15 @@ static const char* sprintf_lite(OpcodeContext& ctx, const char* opcodeName) {
 				        ? _snprintf(outBuf, bufCount, newFmt, arg.floatValue())
 				        : _snprintf(outBuf, bufCount, newFmt, arg.rawValue());
 			}
+			if (partLen < 0 || partLen >= bufCount) { // truncated (_snprintf returns -1), or filled without a terminator
+				outBuf[bufCount] = '\0';
+				bufCount = 0;
+				break;
+			}
 			outBuf += partLen;
 			bufCount -= partLen;
 			conversion = false;
 			j = 0;
-			if (bufCount <= 0) {
-				break;
-			}
 			continue;
 		}
 		newFmt[j++] = c;
@@ -291,7 +293,7 @@ static const char* sprintf_lite(OpcodeContext& ctx, const char* opcodeName) {
 	// Copy the remainder of the string.
 	if (bufCount > 0) {
 		newFmt[j] = '\0';
-		strcpy_s(outBuf, bufCount, newFmt);
+		strncpy_s(outBuf, bufCount + 1, newFmt, _TRUNCATE); // bufCount excludes the terminator slot
 	}
 
 	delete[] newFmt;
