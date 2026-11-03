@@ -148,8 +148,9 @@ __declspec(naked) void op_get_screen_height() {
 
 // copy and split
 static void SplitToBuffer(const char* str, const char** str_ptr, long &lines) {
+	const size_t maxLen = ScriptExtender::TextBufferSize() - 1; // longer text is truncated
 	size_t i = 0;
-	while (str[i]) {
+	while (i < maxLen && str[i]) {
 		if (str[i] == '\n' && lines < 4) {
 			ScriptExtender::gTextBuffer[i] = '\0';
 			str_ptr[lines++] = &ScriptExtender::gTextBuffer[++i];
