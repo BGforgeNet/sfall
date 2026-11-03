@@ -148,7 +148,12 @@ void HookScripts::RegisterHook(fo::Program* script, int id, int procNum, bool sp
 		if (it->prog.ptr == script) {
 			if (procNum == 0) { // unregister
 				// keep hsPosition pointing at the hs_* script
-				if (it - hooks[id].begin() < hooksInfo[id].hsPosition) hooksInfo[id].hsPosition--;
+				long index = it - hooks[id].begin();
+				if (index < hooksInfo[id].hsPosition) {
+					hooksInfo[id].hsPosition--;
+				} else if (index == hooksInfo[id].hsPosition) {
+					hooksInfo[id].hasHsScript = false; // the hs_* script unregistered itself
+				}
 				hooks[id].erase(it);
 			}
 			return;
